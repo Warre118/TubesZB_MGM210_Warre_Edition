@@ -3,8 +3,9 @@
 # Based on tube0013's config (tubeszb-efr32-mgm210-2022.original.yaml in the homelab folder), changes:
 #  - stream_server (tube's external component, no longer maintained) replaced by the built-in
 #    uart_tcp (ESPHome >= 2026.10). Same port 6638, so ZHA / Zigbee2MQTT notice nothing.
-#  - web_server v3 with groups, works offline (local: true), layout via tubeszb-webui.js
-#    (centred, two columns, collapsible debug log window).
+#  - web_server v3 with groups, layout via tubeszb-webui.js (centred, two columns,
+#    collapsible debug log window). local: false is required for that: ESPHome only adds
+#    js_include to the page when the app is loaded from oi.esphome.io (browser needs internet).
 #    Maintenance buttons are "disabled_by_default": on the web page only visible via "Show all",
 #    disabled in Home Assistant by default.
 #  - internal_temperature left out: reports "NA" on this older ESP32.
@@ -28,7 +29,7 @@ esphome:
   friendly_name: ${friendly_name}
   project:
     name: warre.tubeszb_mgm210
-    version: "1.2.0"
+    version: "1.2.1"
 
 esp32:
   board: esp-wrover-kit
@@ -73,7 +74,8 @@ debug:
 web_server:
   port: 80
   version: 3
-  local: true
+  # false: the page loads the web app from oi.esphome.io; only then is js_include loaded.
+  local: false
   log: true
   # Layout: centred, groups in two columns, log as a collapsible window (file next to this config).
   js_include: tubeszb-webui.js
@@ -193,6 +195,7 @@ text_sensor:
     entity_category: diagnostic
     update_interval: 60s
     lambda: |-
+      if (std::isnan(id(uptime_s).state)) return {"starting"};
       int s = (int) id(uptime_s).state;
       char buf[32];
       snprintf(buf, sizeof(buf), "%dd %02dh %02dm", s / 86400, (s % 86400) / 3600, (s % 3600) / 60);

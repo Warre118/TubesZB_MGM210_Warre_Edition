@@ -55,6 +55,10 @@ two columns (one column on a narrow screen):
 - **Debug Log**: collapsible window below the groups (click the title), newest line on top. The
   logger runs at `INFO`: connects/disconnects, OTA, warnings and errors.
 
+The page uses `local: false`: the browser loads the ESPHome web app from `oi.esphome.io` (so it needs
+internet access) and the layout script `/0.js` from the device. ESPHome only adds `js_include` to the
+page in that mode.
+
 The radio firmware and the technical info are fixed text (the `efr32_*` values under
 `substitutions`): the ESP32 cannot read them itself. Update them when you reflash the radio.
 
