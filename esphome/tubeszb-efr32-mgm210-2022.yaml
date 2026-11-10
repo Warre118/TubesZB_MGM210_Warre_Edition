@@ -12,15 +12,15 @@
 # Requires ESPHome 2026.10 or newer. Secrets: see secrets.example.yaml.
 
 substitutions:
-  name: tubeszb-efr32-mgm210-2022
+  name: tubeszb-warre-edition
   friendly_name: "TubesZB MGM210 Warre Edition"
   # Radio info shown on the page. Maintained by hand: the ESP32 cannot read this itself
   # (the serial bridge is transparent). Update after flashing the EFR32.
-  efr32_firmware: "EmberZNet 9.1.1.1 Warre Edition (2026-11-10)"
-  efr32_chip: "Silicon Labs MGM210PA32JIA2 (EFR32MG21)"
-  efr32_stack: "EmberZNet 9.1.1 (Simplicity SDK 2026.6.1)"
-  efr32_fw_type: "Zigbee NCP (EZSP v19)"
-  efr32_interface: "UART over TCP port 6638"
+  efr32_firmware: "EmberZNet 9.1.1.1 (2026-11-10)"
+  efr32_chip: "MGM210PA32JIA2"
+  efr32_stack: "EmberZNet 9.1.1"
+  efr32_fw_type: "EZSP v19"
+  efr32_interface: "UART over TCP 6638"
   efr32_baudrate: "115200"
   efr32_flow_control: "Software (XON/XOFF)"
 
