@@ -3,8 +3,8 @@
 # Based on tube0013's config (tubeszb-efr32-mgm210-2022.original.yaml in the homelab folder), changes:
 #  - stream_server (tube's external component, no longer maintained) replaced by the built-in
 #    uart_tcp (ESPHome >= 2026.10). Same port 6638, so ZHA / Zigbee2MQTT notice nothing.
-#  - web_server v3 with groups, layout via tubeszb-webui.js (centred, two columns,
-#    collapsible debug log window). local: false is required for that: ESPHome only adds
+#  - web_server v3 with groups, layout via tubeszb-webui.js (centred, two columns;
+#    Maintenance and a Debug Log window side by side after "Show All"). local: false is required for that: ESPHome only adds
 #    js_include to the page when the app is loaded from oi.esphome.io (browser needs internet).
 #    Maintenance buttons are "disabled_by_default": on the web page only visible via "Show all",
 #    disabled in Home Assistant by default.
@@ -31,7 +31,7 @@ esphome:
   friendly_name: ${friendly_name}
   project:
     name: warre.tubeszb_mgm210
-    version: "1.3.0"
+    version: "1.3.1"
   # Web login module (see the comments in the file).
   includes:
     - warre_auth.h
@@ -94,7 +94,7 @@ web_server:
     username: "placeholder"
     password: "placeholder-not-used"
     type: digest
-  # Layout: centred, groups in two columns, log as a collapsible window (file next to this config).
+  # Layout: centred, groups in two columns, log window next to Maintenance (file next to this config).
   js_include: tubeszb-webui.js
   sorting_groups:
     - id: grp_zigbee
@@ -378,6 +378,7 @@ button:
 
   # Clears the web login; the page then shows the "Create login" dialog again. Enabled in
   # Home Assistant on purpose: it is the way back in when the password is lost.
+  # Hidden on the web page by tubeszb-webui.js (it is in the Login settings dialog there).
   - platform: template
     name: "Reset web login"
     icon: mdi:lock-reset

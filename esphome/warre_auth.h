@@ -12,6 +12,7 @@
 //   GET  /warre/auth            -> {"state":"unset"|"enabled"|"disabled","user":"..."}
 //   POST /warre/auth/set        -> form fields user, pass: store and enable the login
 //   POST /warre/auth/disable    -> keep no login
+//   POST /warre/auth/reset      -> erase the login; the page shows the setup dialog again
 // Recovery: the Home Assistant button "Reset web login" (via the encrypted native API) calls
 // warre_auth::reset(), after which the page shows the setup dialog again.
 //
@@ -104,7 +105,8 @@ class Handler : public AsyncWebHandler {
   bool canHandle(AsyncWebServerRequest *request) const override {
     char buf[AsyncWebServerRequest::URL_BUF_SIZE];
     esphome::StringRef url = request->url_to(buf);
-    return url == "/warre/auth" || url == "/warre/auth/set" || url == "/warre/auth/disable";
+    return url == "/warre/auth" || url == "/warre/auth/set" || url == "/warre/auth/disable" ||
+           url == "/warre/auth/reset";
   }
 
   void handleRequest(AsyncWebServerRequest *request) override {
@@ -120,6 +122,12 @@ class Handler : public AsyncWebHandler {
     }
     if (request->method() != HTTP_POST) {
       request->send(405, "text/plain", "Method not allowed");
+      return;
+    }
+
+    if (url == "/warre/auth/reset") {
+      reset();
+      request->send(200, "application/json", "{\"ok\":true}");
       return;
     }
 

@@ -51,10 +51,10 @@ two columns (one column on a narrow screen):
 - **Gateway (ESP32)**: connected to Home Assistant, uptime, free heap, ESPHome version,
   last reset reason
 - **Technical info**: chip, Zigbee stack, firmware type, interface, baud rate, flow control
-- **Maintenance** (via *Show all*): restart Zigbee radio, **Zigbee radio to bootloader (flash mode)**,
-  reset web login, restart gateway (also in safe mode)
-- **Debug Log**: collapsible window below the groups (click the title), newest line on top. The
-  logger runs at `INFO`: connects/disconnects, OTA, warnings and errors.
+- **Maintenance** (after *Show All*): login settings, restart Zigbee radio,
+  **Zigbee radio to bootloader (flash mode)**, restart gateway (also in safe mode)
+- **Debug Log** (after *Show All*, next to Maintenance): newest line on top. The logger runs at
+  `INFO`: connects/disconnects, OTA, warnings and errors.
 
 The page uses `local: false`: the browser loads the ESPHome web app from `oi.esphome.io` (so it needs
 internet access) and the layout script `/0.js` from the device. ESPHome only adds `js_include` to the
@@ -63,8 +63,8 @@ page in that mode.
 ### Web login
 
 On first start the page shows a **Create a login** dialog: choose a username and password, or
-*Continue without login*. Later, use **Login settings** at the bottom of the page to change the login
-or turn it off.
+*Continue without login*. Later, use **Show All → Maintenance → Login settings** to change the
+login, turn it off or reset it.
 
 - The login is the browser's own sign-in prompt, using HTTP **Digest** authentication: the password
   is not sent in readable form. The page itself is still plain HTTP (ESPHome has no HTTPS); put it
@@ -73,7 +73,8 @@ or turn it off.
   restarts and OTA updates. The `auth:` block in the YAML only holds placeholders that make ESPHome
   compile the login code in; they are never used.
 - **Forgot the password?** Press **Reset web login** in Home Assistant (it goes over the encrypted
-  native API). The page then shows the setup dialog again.
+  native API). The page then shows the setup dialog again. On the page itself this button is in the
+  Login settings dialog.
 - Until a login is created, anyone on your network can create one. Do it right after installing.
 - Home Assistant (native API, encrypted with the API key) and ZHA (TCP port 6638) are not affected by
   the web login.
