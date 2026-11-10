@@ -22,7 +22,8 @@ efr32/
   build.sh            rebuild it yourself (Docker)
 esphome/
   tubeszb-efr32-mgm210-2022.yaml   config for the ESP32 (web page + serial bridge)
-  tubeszb-webui.js                 web page layout (centred, two columns, log window)
+  tubeszb-webui.js                 web page layout (centred, two columns, log window) + login dialog
+  warre_auth.h                     web login with first-run setup (stored on the device)
   secrets.example.yaml
 docs/
   flashing.md         flash the radio over the network + back to the original
@@ -35,8 +36,8 @@ docs/
 
 Requires **ESPHome 2026.10 or newer** (`uart_tcp`).
 
-1. Copy `esphome/tubeszb-efr32-mgm210-2022.yaml` **and** `esphome/tubeszb-webui.js` into your
-   ESPHome config folder (side by side) and put `tubeszb_api_key` and `tubeszb_ota_password` in your
+1. Copy `esphome/tubeszb-efr32-mgm210-2022.yaml`, `esphome/tubeszb-webui.js` **and**
+   `esphome/warre_auth.h` into your ESPHome config folder (side by side) and put `tubeszb_api_key` and `tubeszb_ota_password` in your
    `secrets.yaml` (see `secrets.example.yaml`). Reuse your existing keys and the link with Home
    Assistant keeps working.
 2. Adjust `allowed_ips` (default `192.168.2.0/24`) to your own network.
@@ -51,13 +52,31 @@ two columns (one column on a narrow screen):
   last reset reason
 - **Technical info**: chip, Zigbee stack, firmware type, interface, baud rate, flow control
 - **Maintenance** (via *Show all*): restart Zigbee radio, **Zigbee radio to bootloader (flash mode)**,
-  restart gateway (also in safe mode)
+  reset web login, restart gateway (also in safe mode)
 - **Debug Log**: collapsible window below the groups (click the title), newest line on top. The
   logger runs at `INFO`: connects/disconnects, OTA, warnings and errors.
 
 The page uses `local: false`: the browser loads the ESPHome web app from `oi.esphome.io` (so it needs
 internet access) and the layout script `/0.js` from the device. ESPHome only adds `js_include` to the
 page in that mode.
+
+### Web login
+
+On first start the page shows a **Create a login** dialog: choose a username and password, or
+*Continue without login*. Later, use **Login settings** at the bottom of the page to change the login
+or turn it off.
+
+- The login is the browser's own sign-in prompt, using HTTP **Digest** authentication: the password
+  is not sent in readable form. The page itself is still plain HTTP (ESPHome has no HTTPS); put it
+  behind a reverse proxy with TLS if you need an encrypted connection.
+- Username and password are stored in the ESP32's flash (NVS), not in the YAML, and survive
+  restarts and OTA updates. The `auth:` block in the YAML only holds placeholders that make ESPHome
+  compile the login code in; they are never used.
+- **Forgot the password?** Press **Reset web login** in Home Assistant (it goes over the encrypted
+  native API). The page then shows the setup dialog again.
+- Until a login is created, anyone on your network can create one. Do it right after installing.
+- Home Assistant (native API, encrypted with the API key) and ZHA (TCP port 6638) are not affected by
+  the web login.
 
 The radio firmware and the technical info are fixed text (the `efr32_*` values under
 `substitutions`): the ESP32 cannot read them itself. Update them when you reflash the radio.

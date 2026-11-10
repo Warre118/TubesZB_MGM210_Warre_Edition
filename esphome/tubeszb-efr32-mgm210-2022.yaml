@@ -8,6 +8,8 @@
 #    js_include to the page when the app is loaded from oi.esphome.io (browser needs internet).
 #    Maintenance buttons are "disabled_by_default": on the web page only visible via "Show all",
 #    disabled in Home Assistant by default.
+#  - Web login with a first-run "Create login" dialog (warre_auth.h, next to this config): the
+#    username/password are set on the page itself and kept in flash, not in this file.
 #  - internal_temperature left out: reports "NA" on this older ESP32.
 # Requires ESPHome 2026.10 or newer. Secrets: see secrets.example.yaml.
 
@@ -29,7 +31,15 @@ esphome:
   friendly_name: ${friendly_name}
   project:
     name: warre.tubeszb_mgm210
-    version: "1.2.1"
+    version: "1.3.0"
+  # Web login module (see the comments in the file).
+  includes:
+    - warre_auth.h
+  on_boot:
+    # 600: after flash preferences are available, before the web server starts.
+    priority: 600
+    then:
+      - lambda: warre_auth::begin();
 
 esp32:
   board: esp-wrover-kit
@@ -77,6 +87,13 @@ web_server:
   # false: the page loads the web app from oi.esphome.io; only then is js_include loaded.
   local: false
   log: true
+  # Placeholder only, needed so ESPHome compiles the login code in. The real username/password
+  # are created on the page (first run) and stored in flash by warre_auth.h; these values are
+  # never used.
+  auth:
+    username: "placeholder"
+    password: "placeholder-not-used"
+    type: digest
   # Layout: centred, groups in two columns, log as a collapsible window (file next to this config).
   js_include: tubeszb-webui.js
   sorting_groups:
@@ -358,6 +375,18 @@ button:
     web_server:
       sorting_group_id: grp_maintenance
       sorting_weight: 20
+
+  # Clears the web login; the page then shows the "Create login" dialog again. Enabled in
+  # Home Assistant on purpose: it is the way back in when the password is lost.
+  - platform: template
+    name: "Reset web login"
+    icon: mdi:lock-reset
+    entity_category: config
+    on_press:
+      - lambda: warre_auth::reset();
+    web_server:
+      sorting_group_id: grp_maintenance
+      sorting_weight: 30
 
   - platform: restart
     name: "Restart gateway"
