@@ -1,110 +1,123 @@
 # TubesZB MGM210 – Warre Edition
 
-Nieuwere firmware en een gebruiksvriendelijke webpagina voor de
-**TubesZB EFR32 MGM210 2022** Zigbee-coordinator (eth_usb/WT32-ETH01 en PoE).
+Newer firmware and a friendlier web page for the
+**TubesZB EFR32 MGM210 2022** Zigbee coordinator (eth_usb/WT32-ETH01 and PoE).
 
-| Onderdeel | Origineel (tube0013) | Warre Edition |
+| Part | Original (tube0013) | Warre Edition |
 |---|---|---|
-| Zigbee-radio (EFR32) | EmberZNet 7.4.3 (Gecko SDK 4.4) | **EmberZNet 9.1.1.1** (Simplicity SDK 2026.6.1) |
-| Seriële brug ESP32 | externe `stream_server` (niet meer onderhouden) | ingebouwde ESPHome `uart_tcp` |
-| Webpagina | één schakelaar en een status | groepen, diagnose, onderhoudsknoppen, Nederlandstalig |
+| Zigbee radio (EFR32) | EmberZNet 7.4.3 (Gecko SDK 4.4) | **EmberZNet 9.1.1.1** (Simplicity SDK 2026.6.1) |
+| ESP32 serial bridge | external `stream_server` (no longer maintained) | built-in ESPHome `uart_tcp` |
+| Web page | one switch and a status | groups, diagnostics, technical info, maintenance buttons, log window |
 
-> **Onofficieel.** Geen product van tube0013, Nabu Casa of Silicon Labs. Getest op één toestel
-> (10/11/2026, ZHA met ±55 apparaten, netwerk behouden zonder restore). Gebruik op eigen risico en
-> maak altijd eerst een backup.
+> **Unofficial.** Not a product of tube0013, Nabu Casa or Silicon Labs. Tested on one device
+> (2026-11-10, ZHA with ~55 devices, network kept without a restore). Use at your own risk and
+> always make a backup first.
 
-## Inhoud
+## Contents
 
 ```
 efr32/
-  firmware/9.1.1.1/   kant-en-klare firmware (.gbl) + SHA256SUMS
-  manifest/           build-manifest voor NabuCasa/silabs-firmware-builder (pinnen, UART, tabellen)
-  build.sh            zelf opnieuw bouwen (Docker)
+  firmware/9.1.1.1/   ready-to-flash firmware (.gbl) + SHA256SUMS
+  manifest/           build manifest for NabuCasa/silabs-firmware-builder (pins, UART, tables)
+  build.sh            rebuild it yourself (Docker)
 esphome/
-  tubeszb-efr32-mgm210-2022.yaml   config voor de ESP32 (webpagina + seriële brug)
+  tubeszb-efr32-mgm210-2022.yaml   config for the ESP32 (web page + serial bridge)
+  tubeszb-webui.js                 web page layout (centred, two columns, log window)
   secrets.example.yaml
 docs/
-  flashing.md         radio flashen via het netwerk + terug naar het origineel
-  hardware.md         pinout EFR32 en ESP32, bronnen
+  flashing.md         flash the radio over the network + back to the original
+  hardware.md         EFR32 and ESP32 pinout, sources
 ```
 
-## Snel aan de slag
+## Getting started
 
-### 1. ESP32 (webpagina en brug) – eerst
+### 1. ESP32 (web page and bridge) – first
 
-Vereist **ESPHome 2026.10 of nieuwer** (`uart_tcp`).
+Requires **ESPHome 2026.10 or newer** (`uart_tcp`).
 
-1. Kopieer `esphome/tubeszb-efr32-mgm210-2022.yaml` naar je ESPHome-configmap en zet
-   `tubeszb_api_key` en `tubeszb_ota_password` in je `secrets.yaml` (zie `secrets.example.yaml`).
-   Gebruik je bestaande sleutels, dan blijft de koppeling met Home Assistant gewoon werken.
-2. Pas zo nodig `allowed_ips` (standaard `192.168.2.0/24`) aan je eigen netwerk aan.
-3. ESPHome → *Install* → *Wirelessly*. De TCP-poort blijft **6638**: ZHA of Zigbee2MQTT merkt niets.
+1. Copy `esphome/tubeszb-efr32-mgm210-2022.yaml` **and** `esphome/tubeszb-webui.js` into your
+   ESPHome config folder (side by side) and put `tubeszb_api_key` and `tubeszb_ota_password` in your
+   `secrets.yaml` (see `secrets.example.yaml`). Reuse your existing keys and the link with Home
+   Assistant keeps working.
+2. Adjust `allowed_ips` (default `192.168.2.0/24`) to your own network.
+3. ESPHome → *Install* → *Wirelessly*. The TCP port stays **6638**: ZHA or Zigbee2MQTT notice nothing.
 
-Daarna toont `http://<naam>.local/` de pagina **TubesZB MGM210 Warre Edition**:
+Afterwards `http://<name>.local/` shows **TubesZB MGM210 Warre Edition**, centred, with the groups in
+two columns (one column on a narrow screen):
 
-- **Zigbee-radio**: radio-firmware, verbonden met ZHA, aantal verbroken verbindingen
-- **Netwerk**: IP- en MAC-adres
-- **Gateway (ESP32)**: verbonden met HA, actief sinds opstart, vrij geheugen, ESPHome-versie,
-  reden laatste herstart
-- **Technische info**: chip, Zigbee-stack, firmwaretype, interface, baudrate, flow control
-- **Onderhoud** (via *Show all*): Zigbee-radio herstarten, **Zigbee-radio in flashmodus (bootloader)**,
-  gateway herstarten (ook in safe mode)
+- **Zigbee radio**: radio firmware, Zigbee client connected, client disconnects
+- **Network**: IP and MAC address
+- **Gateway (ESP32)**: connected to Home Assistant, uptime, free heap, ESPHome version,
+  last reset reason
+- **Technical info**: chip, Zigbee stack, firmware type, interface, baud rate, flow control
+- **Maintenance** (via *Show all*): restart Zigbee radio, **Zigbee radio to bootloader (flash mode)**,
+  restart gateway (also in safe mode)
+- **Debug Log**: collapsible window below the groups (click the title), newest line on top. The
+  logger runs at `INFO`: connects/disconnects, OTA, warnings and errors.
 
-De radio-firmware en de technische info op de pagina zijn vaste tekst (de `efr32_*`-waarden onder
-`substitutions`): de ESP32 kan die niet zelf uitlezen. Pas ze aan als je de radio opnieuw flasht.
+The radio firmware and the technical info are fixed text (the `efr32_*` values under
+`substitutions`): the ESP32 cannot read them itself. Update them when you reflash the radio.
 
-### 2. Zigbee-radio (EFR32) flashen
+> Coming from tube's config? The entity names are new, so Home Assistant creates new entities with
+> new entity IDs. Update dashboards and automations that used the old ones.
 
-Via het netwerk met universal-silabs-flasher, zonder het kastje te openen. Volledig stappenplan,
-inclusief backup en terugweg: **[docs/flashing.md](docs/flashing.md)**.
+### 2. Flash the Zigbee radio (EFR32)
+
+Over the network with universal-silabs-flasher, without opening the case. Full procedure,
+including backup and the way back: **[docs/flashing.md](docs/flashing.md)**.
 
 ```bash
-universal-silabs-flasher --device socket://<ip-van-tubeszb>:6638 \
+universal-silabs-flasher --device socket://<tubeszb-ip>:6638 \
   --probe-methods ezsp:115200,bootloader:115200 \
   flash --firmware efr32/firmware/9.1.1.1/tubeszb_mgm210_zigbee_ncp_9.1.1.1.gbl
 ```
 
-## De firmware zelf opnieuw bouwen
+## Rebuilding the firmware
 
-De firmware wordt gebouwd met [NabuCasa/silabs-firmware-builder](https://github.com/NabuCasa/silabs-firmware-builder).
-Het manifest `efr32/manifest/tubeszb_mgm210_zigbee_ncp.yaml` vertrekt van Nabu Casa's Yellow-manifest
-(zelfde MGM210-module) met de TubesZB-specifieke instellingen:
+The firmware is built with [NabuCasa/silabs-firmware-builder](https://github.com/NabuCasa/silabs-firmware-builder).
+The manifest `efr32/manifest/tubeszb_mgm210_zigbee_ncp.yaml` starts from Nabu Casa's Yellow manifest
+(same MGM210 module) with the TubesZB-specific settings:
 
-| Instelling | Waarde | Waarom |
+| Setting | Value | Why |
 |---|---|---|
-| Module | `MGM210PA32JIA` | MGM210PA32JIA2 op de print |
-| UART | USART0, **TX = PA06, RX = PA05**, 115200 baud | schema; de Yellow heeft TX/RX omgekeerd |
-| Flow control | geen (`usartHwFlowControlNone`) | de ESP32 heeft geen RTS/CTS naar de EFR32; de host gebruikt software flow control |
-| UART-component | `zigbee_ncp_uart_hardware` met flow control uit | de Simplicity SDK heeft geen `ncp-uart-sw`-variant meer |
-| PTI | uit | PC04/PC05 zijn niet nodig |
-| LED | geen | de Yellow-LED (PB01) zit niet op de TubesZB |
-| Tabellen | zoals de Yellow (zelfde RAM) | |
+| Module | `MGM210PA32JIA` | MGM210PA32JIA2 on the board |
+| UART | USART0, **TX = PA06, RX = PA05**, 115200 baud | schematic; the Yellow has TX/RX swapped |
+| Flow control | none (`usartHwFlowControlNone`) | the ESP32 has no RTS/CTS to the EFR32; the host uses software flow control |
+| UART component | `zigbee_ncp_uart_hardware` with flow control off | the Simplicity SDK no longer has an `ncp-uart-sw` variant |
+| PTI | off | PC04/PC05 not needed |
+| LED | none | the Yellow LED (PB01) is not on the TubesZB |
+| Tables | as on the Yellow (same RAM) | |
 
-Bouwen (Linux/WSL met Docker):
+Build (Linux/WSL with Docker):
 
 ```bash
 ./efr32/build.sh          # → efr32/out/*.gbl, *.hex, SHA256SUMS
 ```
 
-Dit bouwt met builder-commit `dae84f45` en Simplicity SDK 2026.6.1. Zelf aanpassen: pas het manifest
-aan (bv. `XNCP_MFG_BOARD_NAME`, tabelgroottes) en bouw opnieuw. Pinout en bronnen:
+This builds with builder commit `dae84f45` and Simplicity SDK 2026.6.1. To customise, edit the manifest
+(e.g. `XNCP_MFG_BOARD_NAME`, table sizes) and rebuild. Pinout and sources:
 [docs/hardware.md](docs/hardware.md).
 
-Controles op de gepubliceerde 9.1.1.1-build: pinconfig gepatcht zoals bedoeld (buildlog), GBL-CRC
-klopt, app start op `0x4000` en NVM3 op `0xF6000`, net als tube's 7.4.3 (zelfde bootloader-indeling,
-netwerkinstellingen blijven staan).
+Checks on the published 9.1.1.1 build: pin config patched as intended (build log), GBL CRC valid, app
+starts at `0x4000` and NVM3 at `0xF6000`, same as tube's 7.4.3 (same bootloader layout, network
+settings are kept).
 
-## Bekend
+## Known issues
 
-- universal-silabs-flasher 1.3.0 geeft na een geslaagde `probe` een traceback in de config-dump:
-  een fout in de flasher, niet in de radio.
-- De Gecko-bootloader van tube aanvaardt deze (niet-gesigneerde) firmware.
-- Terug naar tube's firmware kan altijd; zie [docs/flashing.md](docs/flashing.md).
+- universal-silabs-flasher 1.3.0 prints a traceback in the config dump after a successful `probe`:
+  a bug in the flasher, not in the radio.
+- tube's Gecko bootloader accepts this (unsigned) firmware.
+- Going back to tube's firmware is always possible; see [docs/flashing.md](docs/flashing.md).
 
-## Met dank aan
+## Credits
 
-- [tube0013](https://github.com/tube0013/tube_gateways): hardware, schema's en originele firmware
-- [Nabu Casa](https://github.com/NabuCasa/silabs-firmware-builder): firmware-builder, XNCP-uitbreidingen
+- [tube0013](https://github.com/tube0013/tube_gateways): hardware, schematics and original firmware
+- [Nabu Casa](https://github.com/NabuCasa/silabs-firmware-builder): firmware builder, XNCP extensions
 - [ESPHome](https://esphome.io): `uart_tcp`, web_server
-- Silicon Labs: EmberZNet / Simplicity SDK. De firmware bevat code onder de Silicon Labs Master
+- Silicon Labs: EmberZNet / Simplicity SDK. The firmware contains code under the Silicon Labs Master
   Software License Agreement.
+
+---
+
+*Developed with the help of [Claude](https://claude.ai) (Anthropic), an AI assistant. The firmware and
+the ESPHome config were reviewed and tested on a real TubesZB MGM210 2022.*

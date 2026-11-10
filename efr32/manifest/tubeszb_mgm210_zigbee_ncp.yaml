@@ -1,19 +1,19 @@
 # TubesZB EFR32 MGM210 2022 (eth_usb / PoE) – EmberZNet 9.1 NCP
 #
-# Manifest voor NabuCasa/silabs-firmware-builder (ghcr.io/nabucasa/silabs-firmware-builder).
-# Basis: manifests/nabucasa/yellow/yellow_zigbee_ncp.yaml (zelfde MGM210-module),
-# aangepast aan de TubesZB-print.
+# Manifest for NabuCasa/silabs-firmware-builder (ghcr.io/nabucasa/silabs-firmware-builder).
+# Base: manifests/nabucasa/yellow/yellow_zigbee_ncp.yaml (same MGM210 module),
+# adapted to the TubesZB board.
 #
-# Bronnen voor de pinnen:
-#  - Schema "tubeszb mgm21 poe shield 2022": zRX = PA05, zTX = PA06, CTS = PC01, RTS = PD02,
-#    bootloaderknop = PA00
+# Pin sources:
+#  - Schematic "tubeszb mgm21 poe shield 2022": zRX = PA05, zTX = PA06, CTS = PC01, RTS = PD02,
+#    bootloader button = PA00
 #  - tube0013/silabs-firmware-builder manifests/tubeszb/tubeszb-mgm21-2023-sw_ncp-uart-hw.yaml:
-#    TX = PA06, RX = PA05, USART0, geen hardware flow control
-#  - ESPHome (WT32-ETH01): alleen RX/TX naar de EFR32 (GPIO17/GPIO5), 115200 baud,
+#    TX = PA06, RX = PA05, USART0, no hardware flow control
+#  - ESPHome (WT32-ETH01): only RX/TX to the EFR32 (GPIO17/GPIO5), 115200 baud,
 #    mDNS data_flow_control: software
 #
-# LET OP: de Yellow heeft TX/RX omgekeerd (TX = PA05) en gebruikt CTS/RTS.
-# De Yellow-firmware is dus NIET bruikbaar op de TubesZB.
+# NOTE: the Yellow has TX/RX swapped (TX = PA05) and uses CTS/RTS.
+# Yellow firmware therefore does NOT work on the TubesZB.
 
 name: TubesZB MGM210 2022 Zigbee
 device: MGM210PA32JIA
@@ -36,10 +36,10 @@ sdk_extension:
     vendor: nabucasa
     version: 1.0.0
 
-# De ESP32 heeft geen RTS/CTS-lijnen naar de EFR32. De Simplicity SDK kent geen
-# zigbee_ncp_uart_software meer (alleen zigbee_ncp_uart_hardware), dus: hardware-component
-# met flow control uit (usartHwFlowControlNone), zoals tube's eigen mgm21-2023-manifest
-# en darkxst's "sw_flow"-builds. XNCP meldt dit aan de host als "software" flow control.
+# The ESP32 has no RTS/CTS lines to the EFR32. The Simplicity SDK no longer has
+# zigbee_ncp_uart_software (only zigbee_ncp_uart_hardware), so: hardware component
+# with flow control off (usartHwFlowControlNone), like tube's own mgm21-2023 manifest
+# and darkxst's "sw_flow" builds. XNCP reports this to the host as "software" flow control.
 add_components:
 - id: xncp_core
   vendor: nabucasa
@@ -56,7 +56,7 @@ configuration:
 c_defines:
   XNCP_EZSP_VERSION_PATCH_NUM_OVERRIDE: 1
 
-  # SDK-bug (zie Yellow-manifest): PCLK-divider voor de MGM210
+  # SDK bug (see Yellow manifest): PCLK divider for the MGM210
   SL_CLOCK_MANAGER_PCLK_DIVIDER: SL_CLOCK_MANAGER_PCLK_DIV_MIN
 
   XNCP_MFG_MANUF_NAME: '"TubesZB"'
@@ -64,7 +64,7 @@ c_defines:
   XNCP_BUILD_STRING: template:"{now:%Y%m%d%H%M%S}"
   XNCP_MANUAL_SOURCE_ROUTE_TABLE_SIZE: 200
 
-  # Tabelgroottes: overgenomen van de Yellow (zelfde module, zelfde RAM)
+  # Table sizes: taken from the Yellow (same module, same RAM)
   SL_ZIGBEE_APS_UNICAST_MESSAGE_COUNT: 64
   SL_ZIGBEE_BINDING_TABLE_SIZE: 32
   SL_ZIGBEE_BROADCAST_TABLE_SIZE: 64
@@ -102,7 +102,7 @@ c_defines:
   SL_IOSTREAM_USART_VCOM_TX_PIN:  6
   SL_IOSTREAM_USART_VCOM_RX_PORT: SL_GPIO_PORT_A
   SL_IOSTREAM_USART_VCOM_RX_PIN:  5
-  # Niet verbonden met de ESP32, wel op de print; ongebruikt zonder HW flow control
+  # On the board but not connected to the ESP32; unused without HW flow control
   SL_IOSTREAM_USART_VCOM_CTS_PORT: SL_GPIO_PORT_C
   SL_IOSTREAM_USART_VCOM_CTS_PIN:  1
   SL_IOSTREAM_USART_VCOM_RTS_PORT: SL_GPIO_PORT_D
