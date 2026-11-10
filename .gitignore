@@ -1,0 +1,4 @@
+secrets.yaml
+.esphome/
+efr32/out/
+*.env

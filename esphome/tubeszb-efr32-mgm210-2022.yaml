@@ -1,0 +1,369 @@
+# TubesZB MGM210 Warre Edition – ESPHome-config voor de TubesZB EFR32 MGM210 2022 (eth_usb, WT32-ETH01)
+#
+# Gebaseerd op tube's config (zie tubeszb-efr32-mgm210-2022.original.yaml), aangepast 10/11/2026:
+#  - stream_server (tube's externe component, niet meer onderhouden) vervangen door de ingebouwde
+#    uart_tcp (ESPHome >= 2026.10). Zelfde poort 6638, dus ZHA merkt niets.
+#  - web_server v3 met groepen en Nederlandse namen, offline bruikbaar (local: true).
+#    Onderhoudsknoppen zijn "disabled_by_default": op de webpagina pas zichtbaar via "Show all",
+#    in HA standaard uitgeschakeld.
+#  - internal_temperature weggelaten: geeft "NA" op deze oudere ESP32.
+# Op de ESPHome-server (Device Builder) heet dit bestand tubeszb.yaml.
+# Vereist ESPHome 2026.10 of nieuwer. Secrets: secrets.yaml van de ESPHome-container.
+
+substitutions:
+  name: tubeszb-efr32-mgm210-2022
+  friendly_name: "TubesZB MGM210 Warre Edition"
+  # Technische info over de radio. Handmatig bijhouden: de ESP32 kan dit niet zelf uitlezen
+  # (de seriële brug is transparant). Aanpassen na een nieuwe EFR32-flash.
+  efr32_firmware: "9.1.1.1 Warre Edition (10/11/2026)"
+  efr32_chip: "Silicon Labs MGM210PA32JIA2 (EFR32MG21)"
+  efr32_stack: "EmberZNet 9.1.1 (Simplicity SDK 2026.6.1)"
+  efr32_fw_type: "Zigbee NCP (EZSP v19)"
+  efr32_interface: "UART via TCP-poort 6638"
+  efr32_baudrate: "115200"
+  efr32_flow_control: "Software (XON/XOFF)"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  project:
+    name: warre.tubeszb_mgm210
+    version: "1.0.0"
+
+esp32:
+  board: esp-wrover-kit
+  framework:
+    type: arduino
+    advanced:
+      minimum_chip_revision: "3.1"
+
+# WT32-ETH01 Ethernet
+ethernet:
+  type: LAN8720
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk:
+    mode: CLK_EXT_IN
+    pin:
+      number: 0
+      ignore_strapping_warning: true
+  phy_addr: 1
+  power_pin: GPIO16
+
+logger:
+  level: WARN
+
+api:
+  reboot_timeout: 0s
+  encryption:
+    key: !secret tubeszb_api_key
+
+ota:
+  platform: esphome
+  id: my_ota
+  password: !secret tubeszb_ota_password
+
+safe_mode:
+
+debug:
+  update_interval: 30s
+
+web_server:
+  port: 80
+  version: 3
+  local: true
+  log: false
+  sorting_groups:
+    - id: grp_zigbee
+      name: "Zigbee-radio"
+      sorting_weight: 10
+    - id: grp_netwerk
+      name: "Netwerk"
+      sorting_weight: 20
+    - id: grp_systeem
+      name: "Gateway (ESP32)"
+      sorting_weight: 30
+    - id: grp_tech
+      name: "Technische info"
+      sorting_weight: 35
+    - id: grp_onderhoud
+      name: "Onderhoud"
+      sorting_weight: 40
+
+# --- Seriële brug naar de EFR32 -------------------------------------------------------------
+
+uart:
+  id: uart_bus
+  rx_pin: GPIO17
+  tx_pin:
+    number: GPIO5
+    ignore_strapping_warning: true
+  baud_rate: 115200
+  rx_buffer_size: 1024
+
+uart_tcp:
+  - id: zigbee_tcp
+    uart_id: uart_bus
+    role: server
+    port: 6638
+    allowed_ips:
+      - 192.168.2.0/24
+
+mdns:
+  services:
+    - service: "_tubeszb"
+      protocol: "_tcp"
+      port: 6638
+      txt:
+        version: "1.0"
+        name: "TubesZB"
+        radio_type: "ezsp"
+        baud_rate: "115200"
+        data_flow_control: "software"
+
+# --- Zigbee-radio ----------------------------------------------------------------------------
+
+binary_sensor:
+  - platform: uart_tcp
+    uart_tcp_id: zigbee_tcp
+    connected:
+      name: "Verbonden met ZHA"
+      icon: mdi:lan-connect
+      web_server:
+        sorting_group_id: grp_zigbee
+        sorting_weight: 10
+
+  - platform: status
+    name: "Verbonden met Home Assistant"
+    entity_category: diagnostic
+    web_server:
+      sorting_group_id: grp_systeem
+      sorting_weight: 5
+
+sensor:
+  - platform: uart_tcp
+    uart_tcp_id: zigbee_tcp
+    disconnects:
+      name: "Verbinding verbroken (sinds opstart)"
+      icon: mdi:lan-disconnect
+      entity_category: diagnostic
+      accuracy_decimals: 0
+      web_server:
+        sorting_group_id: grp_zigbee
+        sorting_weight: 20
+
+  # Ruwe uptime in seconden: alleen intern, voor de leesbare tekst hieronder.
+  - platform: uptime
+    id: uptime_s
+    internal: true
+    update_interval: 60s
+
+  - platform: debug
+    free:
+      name: "Vrij werkgeheugen"
+      icon: mdi:memory
+      entity_category: diagnostic
+      web_server:
+        sorting_group_id: grp_systeem
+        sorting_weight: 30
+    block:
+      name: "Grootste vrije geheugenblok"
+      entity_category: diagnostic
+      disabled_by_default: true
+      web_server:
+        sorting_group_id: grp_systeem
+        sorting_weight: 31
+    loop_time:
+      name: "Looptijd hoofdlus"
+      entity_category: diagnostic
+      disabled_by_default: true
+      web_server:
+        sorting_group_id: grp_systeem
+        sorting_weight: 32
+
+text_sensor:
+  - platform: template
+    name: "Actief sinds opstart"
+    icon: mdi:timer-outline
+    entity_category: diagnostic
+    update_interval: 60s
+    lambda: |-
+      int s = (int) id(uptime_s).state;
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%dd %02du %02dm", s / 86400, (s % 86400) / 3600, (s % 3600) / 60);
+      return std::string(buf);
+    web_server:
+      sorting_group_id: grp_systeem
+      sorting_weight: 10
+
+  - platform: template
+    name: "Radio-firmware"
+    icon: mdi:zigbee
+    entity_category: diagnostic
+    update_interval: 1h
+    lambda: |-
+      return {"${efr32_firmware}"};
+    web_server:
+      sorting_group_id: grp_zigbee
+      sorting_weight: 5
+
+  # --- Technische info (vaste tekst uit substitutions) ---
+  - platform: template
+    name: "Chip"
+    icon: mdi:chip
+    entity_category: diagnostic
+    update_interval: 1h
+    lambda: return {"${efr32_chip}"};
+    web_server:
+      sorting_group_id: grp_tech
+      sorting_weight: 10
+
+  - platform: template
+    name: "Zigbee-stack"
+    icon: mdi:layers-outline
+    entity_category: diagnostic
+    update_interval: 1h
+    lambda: return {"${efr32_stack}"};
+    web_server:
+      sorting_group_id: grp_tech
+      sorting_weight: 20
+
+  - platform: template
+    name: "Firmwaretype"
+    icon: mdi:file-cog-outline
+    entity_category: diagnostic
+    update_interval: 1h
+    lambda: return {"${efr32_fw_type}"};
+    web_server:
+      sorting_group_id: grp_tech
+      sorting_weight: 30
+
+  - platform: template
+    name: "Interface"
+    icon: mdi:serial-port
+    entity_category: diagnostic
+    update_interval: 1h
+    lambda: return {"${efr32_interface}"};
+    web_server:
+      sorting_group_id: grp_tech
+      sorting_weight: 40
+
+  - platform: template
+    name: "Baudrate"
+    icon: mdi:speedometer
+    entity_category: diagnostic
+    update_interval: 1h
+    lambda: return {"${efr32_baudrate}"};
+    web_server:
+      sorting_group_id: grp_tech
+      sorting_weight: 50
+
+  - platform: template
+    name: "Flow control"
+    icon: mdi:swap-horizontal
+    entity_category: diagnostic
+    update_interval: 1h
+    lambda: return {"${efr32_flow_control}"};
+    web_server:
+      sorting_group_id: grp_tech
+      sorting_weight: 60
+
+  - platform: ethernet_info
+    ip_address:
+      name: "IP-adres"
+      icon: mdi:ip-network
+      entity_category: diagnostic
+      web_server:
+        sorting_group_id: grp_netwerk
+        sorting_weight: 10
+    mac_address:
+      name: "MAC-adres"
+      icon: mdi:ethernet
+      entity_category: diagnostic
+      web_server:
+        sorting_group_id: grp_netwerk
+        sorting_weight: 20
+
+  - platform: version
+    name: "ESPHome-versie"
+    hide_timestamp: true
+    entity_category: diagnostic
+    web_server:
+      sorting_group_id: grp_systeem
+      sorting_weight: 40
+
+  - platform: debug
+    reset_reason:
+      name: "Reden laatste herstart"
+      icon: mdi:restart-alert
+      entity_category: diagnostic
+      web_server:
+        sorting_group_id: grp_systeem
+        sorting_weight: 41
+
+# --- Aansturing EFR32 (intern: alleen via de knoppen hieronder) --------------------------------
+
+switch:
+  - platform: gpio
+    pin: 33
+    id: zRST_gpio
+    inverted: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio
+    pin: 32
+    id: zBSL
+    inverted: true
+    restore_mode: ALWAYS_OFF
+
+# --- Onderhoud -------------------------------------------------------------------------------
+
+button:
+  - platform: template
+    name: "Zigbee-radio herstarten"
+    id: zRST
+    icon: mdi:restart
+    entity_category: config
+    disabled_by_default: true
+    on_press:
+      - switch.turn_on: zRST_gpio
+      - delay: 15ms
+      - switch.turn_off: zRST_gpio
+    web_server:
+      sorting_group_id: grp_onderhoud
+      sorting_weight: 10
+
+  # Zet de EFR32 in de Gecko-bootloader (voor flashen/herstel). ZHA verliest dan de radio
+  # tot er geflasht wordt of tot "Zigbee-radio herstarten".
+  - platform: template
+    name: "Zigbee-radio in flashmodus (bootloader)"
+    icon: mdi:chip
+    entity_category: config
+    disabled_by_default: true
+    on_press:
+      - switch.turn_on: zBSL
+      - delay: 10ms
+      - switch.turn_on: zRST_gpio
+      - delay: 15ms
+      - switch.turn_off: zRST_gpio
+      - delay: 500ms
+      - switch.turn_off: zBSL
+    web_server:
+      sorting_group_id: grp_onderhoud
+      sorting_weight: 20
+
+  - platform: restart
+    name: "Gateway herstarten"
+    entity_category: config
+    disabled_by_default: true
+    web_server:
+      sorting_group_id: grp_onderhoud
+      sorting_weight: 40
+
+  - platform: safe_mode
+    name: "Gateway herstarten in safe mode"
+    entity_category: config
+    disabled_by_default: true
+    web_server:
+      sorting_group_id: grp_onderhoud
+      sorting_weight: 50
