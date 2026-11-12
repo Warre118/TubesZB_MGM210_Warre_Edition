@@ -1,0 +1,102 @@
+{
+ "schema": 2,
+ "generated": "2026-11-12T20:26:24Z",
+ "device": "tubeszb-mgm210",
+ "title": "TubesZB MGM210 2022",
+ "firmware": {
+  "zigbee_ncp": {
+   "stable": {
+    "version": "7.5.1.0",
+    "file": "tubeszb-mgm210_zigbee_ncp_7.5.1.0.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_ncp/stable/tubeszb-mgm210_zigbee_ncp_7.5.1.0.gbl",
+    "sha256": "19c9006d51a3e7adbbec777ea1d2dab793849dd77b39f2ed427680946c4a9ddb",
+    "md5": "25894b06cf5a40d6428f650fcfb6f990",
+    "size": 258800,
+    "baudrate": 115200,
+    "flow_control": "none",
+    "sdk": "gecko_sdk:4.5.0",
+    "experimental": false,
+    "release_summary": "Zigbee coordinator (EmberZNet NCP) 7.5.1.0 \u00b7 Gecko SDK 4.5.0 \u00b7 v2026.02.23",
+    "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_ncp/stable/RELEASE_NOTES.md",
+    "published": "2026-11-12T20:19:18Z"
+   },
+   "beta": {
+    "version": "9.1.1.1",
+    "file": "tubeszb-mgm210_zigbee_ncp_9.1.1.1.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_ncp/beta/tubeszb-mgm210_zigbee_ncp_9.1.1.1.gbl",
+    "sha256": "22f1b9b959a0a3c27f294d4f7918623f6c7d5ed795cd1d2d03eab076da33d6ce",
+    "md5": "6a905208e9cc63c7e0abc528623abcdc",
+    "size": 249120,
+    "baudrate": 115200,
+    "flow_control": "none",
+    "sdk": "simplicity_sdk:2026.6.1",
+    "experimental": false,
+    "release_summary": "Zigbee coordinator (EmberZNet NCP) 9.1.1.1 \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2",
+    "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_ncp/beta/RELEASE_NOTES.md",
+    "published": "2026-11-12T20:20:01Z"
+   },
+   "latest": {
+    "version": "9.1.1.1",
+    "file": "tubeszb-mgm210_zigbee_ncp_9.1.1.1.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_ncp/latest/tubeszb-mgm210_zigbee_ncp_9.1.1.1.gbl",
+    "sha256": "184cbc33b64d86bc9ea2585ee73d52beff6713e60a5791cf18e6aab9159acec3",
+    "md5": "2fecb7c7ee40b214a4b9b7c5241eeb9c",
+    "size": 249120,
+    "baudrate": 115200,
+    "flow_control": "none",
+    "sdk": "simplicity_sdk:2026.6.1",
+    "experimental": false,
+    "release_summary": "Zigbee coordinator (EmberZNet NCP) 9.1.1.1 \u00b7 Simplicity SDK 2026.6.1 \u00b7 main@28cd284",
+    "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_ncp/latest/RELEASE_NOTES.md",
+    "published": "2026-11-12T20:20:38Z"
+   }
+  },
+  "openthread_rcp": {
+   "stable": {
+    "version": "2.7.2.0",
+    "file": "tubeszb-mgm210_openthread_rcp_2.7.2.0.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/openthread_rcp/stable/tubeszb-mgm210_openthread_rcp_2.7.2.0.gbl",
+    "sha256": "00fca3d7a5849c4304b405816c6be1efed5f2682ac0f851dd5004ecacb4079c9",
+    "md5": "c9cf42a41a6bae3b28a28c907fa2ede7",
+    "size": 117220,
+    "baudrate": 115200,
+    "flow_control": "none",
+    "sdk": "simplicity_sdk:2025.6.2",
+    "experimental": false,
+    "release_summary": "Thread / Matter radio (OpenThread RCP) 2.7.2.0 \u00b7 Simplicity SDK 2025.6.2 \u00b7 v2026.02.23",
+    "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/openthread_rcp/stable/RELEASE_NOTES.md",
+    "published": "2026-11-12T20:21:14Z"
+   },
+   "beta": {
+    "version": "3.1.1.0",
+    "file": "tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/openthread_rcp/beta/tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
+    "sha256": "6dc68046eff5556df5e05bcb6ff5d659fc560212a2e521bdff9f4be56a4faa15",
+    "md5": "b3ea763c125babf9f92379ac6a3bc0cb",
+    "size": 102972,
+    "baudrate": 115200,
+    "flow_control": "none",
+    "sdk": "simplicity_sdk:2026.6.1",
+    "experimental": false,
+    "release_summary": "Thread / Matter radio (OpenThread RCP) 3.1.1.0 \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2",
+    "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/openthread_rcp/beta/RELEASE_NOTES.md",
+    "published": "2026-11-12T20:21:49Z"
+   },
+   "latest": {
+    "version": "3.1.1.0",
+    "file": "tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/openthread_rcp/latest/tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
+    "sha256": "17afc4a9d3003565a55e249f2eaa4ff8aedab33a75ebdc22b5e30728eb749ae0",
+    "md5": "39731922815d99b39f14159dae7fe50b",
+    "size": 102972,
+    "baudrate": 115200,
+    "flow_control": "none",
+    "sdk": "simplicity_sdk:2026.6.1",
+    "experimental": false,
+    "release_summary": "Thread / Matter radio (OpenThread RCP) 3.1.1.0 \u00b7 Simplicity SDK 2026.6.1 \u00b7 main@28cd284",
+    "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/openthread_rcp/latest/RELEASE_NOTES.md",
+    "published": "2026-11-12T20:22:23Z"
+   }
+  }
+ }
+}

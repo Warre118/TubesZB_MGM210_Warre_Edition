@@ -1,0 +1,32 @@
+{
+ "schema": 2,
+ "device": "tubeszb-mgm210",
+ "firmware": "zigbee_ncp",
+ "channel": "beta",
+ "version": "9.1.1.1",
+ "file": "tubeszb-mgm210_zigbee_ncp_9.1.1.1.gbl",
+ "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_ncp/beta/tubeszb-mgm210_zigbee_ncp_9.1.1.1.gbl",
+ "sha256": "22f1b9b959a0a3c27f294d4f7918623f6c7d5ed795cd1d2d03eab076da33d6ce",
+ "md5": "6a905208e9cc63c7e0abc528623abcdc",
+ "size": 249120,
+ "baudrate": 115200,
+ "flow_control": "none",
+ "bootloader_baudrate": 115200,
+ "sdk": "simplicity_sdk:2026.6.1",
+ "description": "EmberZNet NCP (EZSP) for ZHA / Zigbee2MQTT, 115200 baud, no hardware flow control",
+ "release_summary": "Zigbee coordinator (EmberZNet NCP) 9.1.1.1 \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2",
+ "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_ncp/beta/RELEASE_NOTES.md",
+ "experimental": false,
+ "source": {
+  "repo": "NabuCasa/silabs-firmware-builder",
+  "ref": "v2026.09.17-beta2",
+  "commit": "adafdc20307fa0d3146a18583dc20bf6e1ad5439",
+  "url": "https://github.com/NabuCasa/silabs-firmware-builder/releases/tag/v2026.09.17-beta2"
+ },
+ "fingerprint": "314225c4afea7dbde0a06971fd4475db798c9acde94603cb2c54d874f8389356",
+ "config_hash": "5d7598a40669103953140f58156e2a354d0d28ea6feb87be28e3399c84242fc8",
+ "built": "2026-11-12T20:20:01Z",
+ "published": "2026-11-12T20:20:01Z",
+ "stack_version": "9.1.1.1",
+ "revision": 1
+}

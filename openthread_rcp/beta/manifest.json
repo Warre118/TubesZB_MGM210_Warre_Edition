@@ -1,0 +1,32 @@
+{
+ "schema": 2,
+ "device": "tubeszb-mgm210",
+ "firmware": "openthread_rcp",
+ "channel": "beta",
+ "version": "3.1.1.0",
+ "file": "tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
+ "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/openthread_rcp/beta/tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
+ "sha256": "6dc68046eff5556df5e05bcb6ff5d659fc560212a2e521bdff9f4be56a4faa15",
+ "md5": "b3ea763c125babf9f92379ac6a3bc0cb",
+ "size": 102972,
+ "baudrate": 115200,
+ "flow_control": "none",
+ "bootloader_baudrate": 115200,
+ "sdk": "simplicity_sdk:2026.6.1",
+ "description": "OpenThread RCP (Thread / Matter border router radio), 115200 baud, no flow control",
+ "release_summary": "Thread / Matter radio (OpenThread RCP) 3.1.1.0 \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2",
+ "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/openthread_rcp/beta/RELEASE_NOTES.md",
+ "experimental": false,
+ "source": {
+  "repo": "NabuCasa/silabs-firmware-builder",
+  "ref": "v2026.09.17-beta2",
+  "commit": "adafdc20307fa0d3146a18583dc20bf6e1ad5439",
+  "url": "https://github.com/NabuCasa/silabs-firmware-builder/releases/tag/v2026.09.17-beta2"
+ },
+ "fingerprint": "a94be0a06c3f7c932499ec697f05ec7a1a0b713868c99d94ad893498f442403b",
+ "config_hash": "e07b2990b302bfe224f980479a68e3f2df3af1d2e494206459de462214762e8f",
+ "built": "2026-11-12T20:21:49Z",
+ "published": "2026-11-12T20:21:49Z",
+ "stack_version": "3.1.1.0",
+ "revision": 1
+}
