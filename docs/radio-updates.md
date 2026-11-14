@@ -25,10 +25,9 @@ archive/                     earlier builds
 | Channel | Follows |
 |---|---|
 | `stable` | the newest full release of Nabu Casa's builder (what Home Assistant ships) |
-| `beta` | the newest pre-release of the builder, while there is one newer than the release |
 | `latest` | the head of the builder's `main` branch with the newest SDK |
 
-The device defaults to **stable**.
+At boot the type follows the firmware that is on the radio, and the channel is **stable**, or **latest** when the installed version is newer than stable. Changing either one by hand checks right away.
 
 ## On the device
 
@@ -36,13 +35,14 @@ Group **Radio firmware** on the web page (and the same entities in Home Assistan
 
 | Entity | What it does |
 |---|---|
-| Radio firmware channel | `stable` / `latest` / `beta`; changing it checks right away |
 | Radio firmware type | Zigbee (EmberZNet NCP), Thread (OpenThread RCP) or Zigbee router |
+| Radio firmware channel | `stable` / `latest`; changing it checks right away |
 | Radio firmware | update entity: installed version, the version the channel offers, the release summary and a link to the release notes, and the **Install** button |
-| Radio firmware installed | (Zigbee radio group) what is on the EFR32 now |
 | Zigbee router network | with the router firmware: not on a network / joining / joined (channel, PAN, node) |
 | Zigbee router: join network | with the router firmware: search for an open Zigbee network and join it |
 | Zigbee router: leave network | with the router firmware: leave the network (after *Show All*) |
+
+The web page shows the router rows only while the router firmware is on the radio, and the update row shows the offered version instead of *UPDATE AVAILABLE*. **Radio firmware installed** is in *Technical info*; the Zigbee client connection and disconnect counter are in *Network*.
 
 The check runs at start-up and every 6 hours (and on a channel or type change).
 

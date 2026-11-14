@@ -12,10 +12,10 @@
 #    username/password are set on the page itself and kept in flash, not in this file.
 #  - internal_temperature left out: reports "NA" on this older ESP32.
 #  - Radio firmware updates (components/efr32_radio, next to this config): an update entity that
-#    offers the build of the selected channel (stable / latest / beta) and stack (Zigbee
+#    offers the build of the selected channel (stable / latest) and stack (Zigbee
 #    coordinator / Thread / Zigbee router, the router with join and leave buttons)
 #    from the "firmware" branch of this repository, with release notes, and flashes the EFR32 from
-#    Home Assistant or this device's web page. Manifests are signed; the image is checked against
+#    Home Assistant or this device's web page. At boot type and channel follow the flashed stack. Manifests are signed; the image is checked against
 #    the signed checksum before anything is sent to the radio. See docs/radio-updates.md.
 # Requires ESPHome 2026.10 or newer. Secrets: see secrets.example.yaml.
 
@@ -40,7 +40,7 @@ esphome:
   friendly_name: ${friendly_name}
   project:
     name: warre.tubeszb_mgm210
-    version: "1.4.0"
+    version: "1.4.1"
   # Web login module (see the comments in the file).
   includes:
     - warre_auth.h
@@ -112,11 +112,12 @@ web_server:
   # Layout: centred, groups in two columns, log window next to Maintenance (file next to this config).
   js_include: tubeszb-webui.js
   sorting_groups:
-    - id: grp_zigbee
-      name: "Zigbee radio"
-      sorting_weight: 10
+    # two columns on the web page: odd groups left, even groups right
     - id: grp_radio_fw
       name: "Radio firmware"
+      sorting_weight: 10
+    - id: grp_tech
+      name: "Technical info"
       sorting_weight: 15
     - id: grp_network
       name: "Network"
@@ -124,9 +125,6 @@ web_server:
     - id: grp_gateway
       name: "Gateway (ESP32)"
       sorting_weight: 30
-    - id: grp_tech
-      name: "Technical info"
-      sorting_weight: 35
     - id: grp_maintenance
       name: "Maintenance"
       sorting_weight: 40
@@ -178,15 +176,15 @@ select:
     name: "Radio firmware channel"
     icon: mdi:source-branch
     entity_category: config
-    options: [stable, latest, beta]
+    options: [stable, latest]
+    # set at boot by radio_update: the channel the installed version came from
     initial_option: stable
     optimistic: true
-    restore_value: true
     on_value:
       - lambda: id(radio_update).check();
     web_server:
       sorting_group_id: grp_radio_fw
-      sorting_weight: 10
+      sorting_weight: 20
 
   - platform: template
     id: radio_stack
@@ -197,14 +195,14 @@ select:
       - "Zigbee (EmberZNet NCP)"
       - "Thread (OpenThread RCP)"
       - "Zigbee router"
+    # set at boot by radio_update: the stack that is on the radio
     initial_option: "Zigbee (EmberZNet NCP)"
     optimistic: true
-    restore_value: true
     on_value:
       - lambda: id(radio_update).check();
     web_server:
       sorting_group_id: grp_radio_fw
-      sorting_weight: 20
+      sorting_weight: 10
 
 update:
   - platform: efr32_radio
@@ -235,7 +233,7 @@ update:
       sorting_group_id: grp_radio_fw
       sorting_weight: 30
 
-# --- Zigbee radio --------------------------------------------------------------------------
+# --- Zigbee client (TCP bridge) --------------------------------------------------------------
 
 binary_sensor:
   - platform: uart_tcp
@@ -244,8 +242,8 @@ binary_sensor:
       name: "Zigbee client connected"
       icon: mdi:lan-connect
       web_server:
-        sorting_group_id: grp_zigbee
-        sorting_weight: 10
+        sorting_group_id: grp_network
+        sorting_weight: 30
 
   - platform: status
     name: "Connected to Home Assistant"
@@ -263,8 +261,8 @@ sensor:
       entity_category: diagnostic
       accuracy_decimals: 0
       web_server:
-        sorting_group_id: grp_zigbee
-        sorting_weight: 20
+        sorting_group_id: grp_network
+        sorting_weight: 40
 
   # Raw uptime in seconds: internal only, feeds the readable text below.
   - platform: uptime
@@ -322,7 +320,7 @@ text_sensor:
       std::string name = fw == "openthread_rcp" ? "OpenThread RCP" : fw == "zigbee_router" ? "Zigbee router" : "EmberZNet";
       return {name + " " + (v.empty() ? std::string("(unknown)") : v)};
     web_server:
-      sorting_group_id: grp_zigbee
+      sorting_group_id: grp_tech
       sorting_weight: 5
 
   # --- Technical info (fixed text from substitutions) ---

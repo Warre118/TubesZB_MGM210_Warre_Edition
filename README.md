@@ -46,11 +46,12 @@ Requires **ESPHome 2026.10 or newer** (`uart_tcp`).
 Afterwards `http://<name>.local/` shows **TubesZB MGM210 Warre Edition**, centred, with the groups in
 two columns (one column on a narrow screen):
 
-- **Zigbee radio**: radio firmware, Zigbee client connected, client disconnects
-- **Network**: IP and MAC address
+- **Radio firmware** (left) and **Technical info** (right): firmware type, channel, the update entity with
+  the offered version, *Install radio firmware*; router rows only with the router firmware
+- **Network**: IP and MAC address, Zigbee client connected, client disconnects
 - **Gateway (ESP32)**: connected to Home Assistant, uptime, free heap, ESPHome version,
   last reset reason
-- **Technical info**: chip, Zigbee stack, firmware type, interface, baud rate, flow control
+- **Technical info**: radio firmware installed, chip, Zigbee stack, firmware type, interface, baud rate, flow control
 - **Maintenance** (after *Show All*): login settings, restart Zigbee radio,
   **Zigbee radio to bootloader (flash mode)**, restart gateway (also in safe mode)
 - **Debug Log** (after *Show All*, next to Maintenance): newest line on top. The logger runs at

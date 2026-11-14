@@ -136,6 +136,7 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
   std::atomic<bool> check_done_{false};
   bool recheck_{false};               // check() came in while one was running
   bool hold_check_{false};            // the web page is changing both selects
+  bool auto_channel_{false};          // channel still the boot default (stable), may become latest
 
   std::mutex web_lock_;
   WebStatus web_;                     // guarded by web_lock_

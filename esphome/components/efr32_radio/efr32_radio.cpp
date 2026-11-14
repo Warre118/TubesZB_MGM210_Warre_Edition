@@ -1,5 +1,6 @@
 #include "efr32_radio.h"
 
+#include <cctype>
 #include <cstring>
 
 #include <esp_ota_ops.h>
@@ -194,6 +195,13 @@ void Efr32RadioUpdate::setup() {
   }
   this->update_info_.current_version = this->installed_version_;
   this->update_info_.title = firmware_label(this->installed_firmware_);
+  // The selects follow the flashed stack at boot: its type, and channel "stable" until the first
+  // check shows the installed version is newer than stable (then "latest"; see apply_offer_()).
+  this->hold_check_ = true;
+  this->select_option_(this->firmware_select_, this->installed_firmware_, true);
+  this->select_option_(this->channel_select_, "stable", false);
+  this->hold_check_ = false;
+  this->auto_channel_ = true;
   this->publish_state();
   this->snapshot_();
 #ifdef USE_WEBSERVER
@@ -279,7 +287,26 @@ static bool known_firmware(const std::string &fw) {
   return fw == "zigbee_ncp" || fw == "openthread_rcp" || fw == "zigbee_router";
 }
 
-static bool known_channel(const std::string &ch) { return ch == "stable" || ch == "beta" || ch == "latest"; }
+static bool known_channel(const std::string &ch) { return ch == "stable" || ch == "latest"; }
+
+// Compare dotted numeric versions ("9.1.1.1" vs "7.5.1.0", "2026.6.1" vs "2025.6.2"): <0, 0, >0.
+static int compare_versions(const std::string &a, const std::string &b) {
+  size_t i = 0, j = 0;
+  while (i < a.size() || j < b.size()) {
+    unsigned long x = 0, y = 0;
+    while (i < a.size() && isdigit((unsigned char) a[i]))
+      x = x * 10 + (a[i++] - '0');
+    while (j < b.size() && isdigit((unsigned char) b[j]))
+      y = y * 10 + (b[j++] - '0');
+    if (x != y)
+      return x < y ? -1 : 1;
+    while (i < a.size() && !isdigit((unsigned char) a[i]))
+      i++;
+    while (j < b.size() && !isdigit((unsigned char) b[j]))
+      j++;
+  }
+  return 0;
+}
 
 void Efr32RadioUpdate::select_option_(select::Select *sel, const std::string &want, bool firmware) {
   if (sel == nullptr)
@@ -309,6 +336,7 @@ const char *Efr32RadioUpdate::web_select(const std::string &firmware, const std:
   this->defer([this, firmware, channel]() {
     if (this->state_ == update::UPDATE_STATE_INSTALLING)
       return;
+    this->auto_channel_ = false;  // the user chose
     this->hold_check_ = true;  // the selects' on_value would check twice, half-changed
     this->select_option_(this->firmware_select_, firmware, true);
     this->select_option_(this->channel_select_, channel, false);
@@ -516,6 +544,15 @@ void Efr32RadioUpdate::apply_offer_(const Offer &o) {
   ESP_LOGI(TAG, "%s %s: %s (installed: %s %s)%s", o.firmware.c_str(), o.channel.c_str(), o.version.c_str(),
            this->installed_firmware_.c_str(), this->installed_version_.c_str(), same ? "" : " - update available");
   this->publish_state();
+  // Boot default: the installed version is newer than stable, so it came from "latest".
+  if (this->auto_channel_ && o.channel == "stable" && o.firmware == this->installed_firmware_) {
+    this->auto_channel_ = false;
+    if (!this->installed_version_.empty() && compare_versions(this->installed_version_, o.version) > 0) {
+      ESP_LOGI(TAG, "Installed %s is newer than stable %s: channel latest", this->installed_version_.c_str(),
+               o.version.c_str());
+      this->select_option_(this->channel_select_, "latest", false);  // on_value checks again
+    }
+  }
 }
 
 // ------------------------------------------------------------------ install

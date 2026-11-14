@@ -8,6 +8,9 @@
 (function () {
   var MAINT = 'Maintenance';
   var RADIO_GROUP = 'Radio firmware';     // web_server sorting group of the radio update entities
+  var RADIO_UPDATE = 'Radio firmware';    // the update entity (efr32_radio)
+  // rows that only mean something while the radio runs the Zigbee router firmware
+  var ROUTER_ROWS = ['Zigbee router network', 'Zigbee router: join network', 'Zigbee router: leave network'];
   var RESET_ENTITY = 'Reset web login';   // stays in Home Assistant, hidden on the page
   var LOG_ROWS = 200;
 
@@ -26,6 +29,7 @@
     G + '>.singlebutton-row{grid-column:1/-1;text-align:center}' +
     '.tab-container{margin-bottom:14px}' +
     '.warre-hidden{display:none!important}' +
+    '.warre-ver.new{font-weight:700}' +
     // log window
     // newest line on top (inserted as first child); same height as the Maintenance list
     '.warre-log{font-family:monospace;font-size:13px;line-height:1.35;height:200px;overflow:auto;padding:8px 10px}' +
@@ -132,11 +136,26 @@
       if (!maintCont.querySelector('.warre-loginrow')) maintCont.insertBefore(makeLoginRow(), maintCont.firstChild);
     }
 
-    // "Install radio firmware" row at the top of the Radio firmware group
+    // Radio firmware group: router rows only with the router firmware on the radio, the update
+    // entity shows the version instead of "UPDATE AVAILABLE", "Install radio firmware" right below it
     for (var h = 0; h < headers.length; h++) {
       if (headers[h].textContent.trim() !== RADIO_GROUP) continue;
       var rc = headers[h].nextElementSibling;
-      if (rc && !rc.querySelector('.warre-radiorow')) rc.insertBefore(makeRadioRow(), rc.firstChild);
+      if (!rc) continue;
+      var updRow = null;
+      var rrows = rc.querySelectorAll(':scope > .entity-row:not(.warre-radiorow)');
+      for (var q = 0; q < rrows.length; q++) {
+        var rn = rrows[q].children[1] ? rrows[q].children[1].textContent.trim() : '';
+        if (ROUTER_ROWS.indexOf(rn) >= 0) rrows[q].classList.toggle('warre-hidden', radioInstalled !== 'zigbee_router');
+        if (rn === RADIO_UPDATE) updRow = rrows[q];
+      }
+      var radioRow = rc.querySelector('.warre-radiorow') || makeRadioRow();
+      if (updRow) {
+        if (updRow.nextElementSibling !== radioRow) updRow.after(radioRow);
+        showUpdateVersion(table, updRow);
+      } else if (!radioRow.parentNode) {
+        rc.appendChild(radioRow);
+      }
     }
 
     // Maintenance only after "Show All"
@@ -184,6 +203,41 @@
     return buttonRow('warre-loginrow', 'mdi:account-lock', 'Login settings', 'Open', function () { openLoginSettings(); });
   }
 
+  // Installed radio firmware (from /warre/radio), for the router rows; refreshed now and then.
+  var radioInstalled = null;
+  function refreshRadioInstalled() {
+    radioStatus().then(function (st) { radioInstalled = st.installed_firmware || null; }, function () {});
+  }
+
+  // The stock update row says "NO UPDATE" / "UPDATE AVAILABLE"; show the offered version instead.
+  function showUpdateVersion(table, row) {
+    var ent = null, list = table.entities || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].domain === 'update' && list[i].name === RADIO_UPDATE) ent = list[i];
+    }
+    var cell = row.children[2];
+    if (!cell) return;
+    var stock = cell.querySelector(':scope > div:not(.warre-ver)');
+    var mine = cell.querySelector(':scope > .warre-ver');
+    var state = ent ? String(ent.state || '').toUpperCase() : '';
+    var show = ent && ent.value && state.indexOf('INSTALL') < 0 && !(stock && stock.querySelector('button'));
+    if (!show) {
+      if (mine) mine.remove();
+      if (stock) stock.classList.remove('warre-hidden');
+      return;
+    }
+    if (!mine) {
+      mine = el('div', { class: 'warre-ver' });
+      cell.appendChild(mine);
+    }
+    var isNew = state.indexOf('AVAILABLE') >= 0;
+    var text = isNew ? 'New: ' + ent.value : ent.value;
+    if (mine.textContent !== text) mine.textContent = text;
+    mine.classList.toggle('new', isNew);
+    mine.title = isNew ? 'Update available' : 'Up to date';
+    if (stock) stock.classList.add('warre-hidden');
+  }
+
   function makeRadioRow() {
     return buttonRow('warre-radiorow', 'mdi:chip', 'Install radio firmware', 'Choose version', function () { openRadio(); });
   }
@@ -203,6 +257,8 @@
   // The app builds itself asynchronously and re-renders parts: keep checking.
   apply();
   setInterval(apply, 500);
+  setTimeout(refreshRadioInstalled, 1000);
+  setInterval(refreshRadioInstalled, 30000);
 
   // --- Web login (see warre_auth.h) ----------------------------------------------------------
   // First run: a "Create login" dialog. Later: Maintenance -> "Login settings" to change the login,
@@ -376,7 +432,7 @@
     zigbee_router: 'Zigbee router'
   };
   var FW_ORDER = ['zigbee_ncp', 'openthread_rcp', 'zigbee_router'];
-  var CH_ORDER = ['stable', 'beta', 'latest'];
+  var CH_ORDER = ['stable', 'latest'];
   var radioBusy = false;      // a check or install is being followed by this page
 
   function radioStatus() {
