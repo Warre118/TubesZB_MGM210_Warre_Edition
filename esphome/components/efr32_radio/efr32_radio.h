@@ -12,8 +12,13 @@
 // router_*:  only with the zigbee_router firmware on the radio: talk to its CLI on the
 //            UART (join / leave a network, read the network state). Each command blocks
 //            the main loop for well under a second, so uart_tcp cannot take the reply.
+// web:       GET /warre/radio (status), POST /warre/radio/select (firmware + channel, then a
+//            fresh signed check) and POST /warre/radio/install (installs the verified offer,
+//            only when it is exactly the firmware/channel/version the page asked for). Used by
+//            the version picker on the device's own web page; behind the web login.
 
 #include <atomic>
+#include <mutex>
 #include <string>
 
 #include "esphome/core/component.h"
@@ -31,6 +36,17 @@ struct Offer {
   std::string firmware, channel, version, url, sha256, summary, release_url, error;
   uint32_t size{0};
   uint32_t baudrate{0};
+};
+
+// Copy of the state for the web handler, which runs in the web server task.
+struct WebStatus {
+  std::string installed_firmware, installed_version, selected_firmware, selected_channel;
+  std::string offer_firmware, offer_channel, offer_version, offer_summary, offer_release_url;
+  std::string check_firmware, check_channel, check_error;  // last finished check
+  std::string phase, result_message;
+  uint32_t check_seq{0}, install_seq{0};
+  int progress{0};
+  bool checking{false}, installing{false}, queued{false}, result_ok{false};
 };
 
 struct Installed {
@@ -70,6 +86,12 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
   void router_leave();
   void router_refresh();
 
+  // Web page API (safe to call from the web server task; the work runs in the main loop).
+  WebStatus web_status();
+  const char *web_select(const std::string &firmware, const std::string &channel);
+  const char *web_install(const std::string &firmware, const std::string &channel, const std::string &version);
+  const char *base_url() const { return this->base_url_; }
+
   const std::string &installed_firmware() const { return this->installed_firmware_; }
   const std::string &installed_version() const { return this->installed_version_; }
   std::string selected_channel() const;
@@ -89,6 +111,8 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
   void fail_(const char *msg);
   std::string cli_(const char *cmd, uint32_t wait_ms);
   void publish_router_status_(const std::string &text);
+  void snapshot_();
+  void select_option_(select::Select *sel, const std::string &want, bool firmware);
 
   http_request::HttpRequestComponent *http_{nullptr};
   uart::UARTComponent *serial_{nullptr};
@@ -110,6 +134,18 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
   Offer *pending_{nullptr};           // handed from the check task to loop()
   std::atomic<bool> checking_{false};
   std::atomic<bool> check_done_{false};
+  bool recheck_{false};               // check() came in while one was running
+  bool hold_check_{false};            // the web page is changing both selects
+
+  std::mutex web_lock_;
+  WebStatus web_;                     // guarded by web_lock_
+  std::string phase_;
+  uint32_t check_seq_{0};
+  std::string check_firmware_, check_channel_, check_error_;
+  uint32_t install_seq_{0};
+  bool result_ok_{false};
+  std::string result_message_;
+  std::atomic<bool> install_queued_{false};
 };
 
 }  // namespace esphome::efr32_radio

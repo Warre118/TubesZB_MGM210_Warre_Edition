@@ -46,6 +46,32 @@ Group **Radio firmware** on the web page (and the same entities in Home Assistan
 
 The check runs at start-up and every 6 hours (and on a channel or type change).
 
+### Choosing a version on the web page
+
+The group also has a row **Install radio firmware → Choose version**. It opens a dialog:
+
+1. **List.** Every firmware type × channel that the firmware list (`index.json` on the
+   `firmware` branch) has, with version and SDK. The installed build is tagged *installed*,
+   experimental builds *experimental*. The current choice is preselected.
+2. **Update...** The device sets both selects to that choice and checks the **signed** manifest
+   for it (the page waits up to a minute). Without a verified offer nothing more happens; the
+   error is shown.
+3. **Warning.** Backup, the bridge/page/API being down for about half a minute, not unplugging
+   the device, experimental build, re-install of the same version, and (in red, with its own
+   checkbox) that switching the type loses the network. **Install** stays disabled until the
+   checkboxes are ticked.
+4. **Install.** The page sends the exact type, channel and version; the device only accepts it
+   when that is the offer it just verified, and checks it once more right before it starts. The
+   page shows download / flash progress and the result.
+
+The page uses these endpoints (behind the web server login, if it is on):
+
+| Endpoint | |
+|---|---|
+| `GET /warre/radio` | status JSON: installed, selection, last check (`check_seq`, error), verified offer, install phase/progress, last result (`install_seq`, `result_ok`, `result_message`) |
+| `POST /warre/radio/select` | `firmware=&channel=`: set the selects and check again |
+| `POST /warre/radio/install` | `firmware=&channel=&version=`: install the verified offer if it is exactly that (409 otherwise) |
+
 **Install** does:
 
 1. Download the image into the ESP32's spare OTA partition (that partition is never made

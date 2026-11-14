@@ -7,6 +7,7 @@
 // The v3 page uses shadow DOM, so this script adds <style> and elements inside those shadow roots.
 (function () {
   var MAINT = 'Maintenance';
+  var RADIO_GROUP = 'Radio firmware';     // web_server sorting group of the radio update entities
   var RESET_ENTITY = 'Reset web login';   // stays in Home Assistant, hidden on the page
   var LOG_ROWS = 200;
 
@@ -131,6 +132,13 @@
       if (!maintCont.querySelector('.warre-loginrow')) maintCont.insertBefore(makeLoginRow(), maintCont.firstChild);
     }
 
+    // "Install radio firmware" row at the top of the Radio firmware group
+    for (var h = 0; h < headers.length; h++) {
+      if (headers[h].textContent.trim() !== RADIO_GROUP) continue;
+      var rc = headers[h].nextElementSibling;
+      if (rc && !rc.querySelector('.warre-radiorow')) rc.insertBefore(makeRadioRow(), rc.firstChild);
+    }
+
     // Maintenance only after "Show All"
     if (maintHdr) {
       maintHdr.classList.toggle('warre-hidden', !showAll);
@@ -154,22 +162,30 @@
     }
   }
 
-  function makeLoginRow() {
+  function buttonRow(cls, icon, name, label, onClick) {
     // same markup as the stock entity rows, so it looks like a normal button row
-    var row = el('div', { class: 'entity-row warre-loginrow' });
+    var row = el('div', { class: 'entity-row ' + cls });
     var ic = el('div');
-    ic.appendChild(el('iconify-icon', { icon: 'mdi:account-lock', height: '24px' }));
+    ic.appendChild(el('iconify-icon', { icon: icon, height: '24px' }));
     row.appendChild(ic);
-    row.appendChild(el('div', {}, 'Login settings'));
+    row.appendChild(el('div', {}, name));
     var c = el('div');
-    var b = el('button', { class: 'abutton', type: 'button' }, 'Open');
+    var b = el('button', { class: 'abutton', type: 'button' }, label);
     b.onclick = function (ev) {
       ev.stopPropagation();
-      openLoginSettings();
+      onClick();
     };
     c.appendChild(b);
     row.appendChild(c);
     return row;
+  }
+
+  function makeLoginRow() {
+    return buttonRow('warre-loginrow', 'mdi:account-lock', 'Login settings', 'Open', function () { openLoginSettings(); });
+  }
+
+  function makeRadioRow() {
+    return buttonRow('warre-radiorow', 'mdi:chip', 'Install radio firmware', 'Choose version', function () { openRadio(); });
   }
 
   function apply() {
@@ -209,7 +225,28 @@
     '#warre-dlg button{padding:9px 14px;border-radius:8px;border:1px solid #7f7f7f80;background:transparent;' +
     'color:inherit;font:inherit;cursor:pointer}' +
     '#warre-dlg button.primary{background:#03a9f4;border-color:#03a9f4;color:#fff}' +
-    '#warre-dlg button.danger{border-color:#e53935;color:#e53935}';
+    '#warre-dlg button.danger{border-color:#e53935;color:#e53935}' +
+    '#warre-dlg button:disabled{opacity:.45;cursor:default}' +
+    '#warre-dlg button.danger.fill{background:#e53935;color:#fff}' +
+    // radio firmware dialog
+    '#warre-dlg form.wide{max-width:560px;max-height:calc(100vh - 32px);overflow:auto}' +
+    '#warre-dlg .fwlist{display:flex;flex-direction:column;gap:6px;margin:4px 0 0}' +
+    '#warre-dlg .fw{display:flex;gap:10px;align-items:flex-start;margin:0;padding:9px 10px;border:1px solid #7f7f7f50;' +
+    'border-radius:9px;cursor:pointer;font-size:.9rem}' +
+    '#warre-dlg .fw:has(input:checked){border-color:#03a9f4;background:#03a9f418}' +
+    '#warre-dlg .fw input{width:auto;margin:3px 0 0}' +
+    '#warre-dlg .fw small{display:block;opacity:.7;margin-top:2px}' +
+    '#warre-dlg .tag{display:inline-block;font-size:.72rem;padding:1px 6px;border-radius:6px;margin-left:6px;' +
+    'border:1px solid currentColor;vertical-align:1px}' +
+    '#warre-dlg .tag.inst{color:#2e9d3a}#warre-dlg .tag.exp{color:#e08a00}' +
+    '#warre-dlg ul.warn{margin:6px 0 10px;padding-left:20px;font-size:.88rem;line-height:1.4}' +
+    '#warre-dlg ul.warn li{margin:4px 0}#warre-dlg ul.warn li.big{color:#e53935;font-weight:600}' +
+    '#warre-dlg label.ack{display:flex;gap:8px;align-items:flex-start;font-size:.88rem;margin:8px 0}' +
+    '#warre-dlg label.ack input{width:auto;margin:2px 0 0}' +
+    '#warre-dlg .bar{height:10px;border-radius:5px;background:#7f7f7f30;overflow:hidden;margin:12px 0 6px}' +
+    '#warre-dlg .bar div{height:100%;background:#03a9f4;width:0;transition:width .4s}' +
+    '#warre-dlg .ok{color:#2e9d3a;font-weight:600}#warre-dlg .bad{color:#e53935;font-weight:600}' +
+    '#warre-dlg a{color:#03a9f4}';
 
   var authState = null;
 
@@ -324,6 +361,295 @@
   function openLoginSettings() {
     refresh().then(function (s) {
       if (s && s.state !== 'unset') showDialog(s.state === 'enabled' ? 'change' : 'enable');
+    });
+  }
+
+  // --- Radio firmware (see components/efr32_radio) -----------------------------------------------
+  // Radio firmware -> "Install radio firmware": pick a firmware type + channel from the firmware
+  // list in this repository's `firmware` branch (index.json), press Update. The device checks the
+  // signed manifest for that choice; the page then shows a warning and only after it is accepted
+  // asks the device to flash exactly that verified version into the EFR32.
+
+  var FW_LABEL = {
+    zigbee_ncp: 'Zigbee coordinator (EmberZNet NCP)',
+    openthread_rcp: 'Thread (OpenThread RCP)',
+    zigbee_router: 'Zigbee router'
+  };
+  var FW_ORDER = ['zigbee_ncp', 'openthread_rcp', 'zigbee_router'];
+  var CH_ORDER = ['stable', 'beta', 'latest'];
+  var radioBusy = false;      // a check or install is being followed by this page
+
+  function radioStatus() {
+    return fetch('/warre/radio', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  function sleep(ms) {
+    return new Promise(function (res) { setTimeout(res, ms); });
+  }
+
+  // Poll the status until done(st) is true. Failed requests are tolerated (the device is busy while it
+  // flashes); gives up after `limit` ms.
+  function pollRadio(done, limit, onEach) {
+    var until = Date.now() + limit;
+    function step() {
+      if (Date.now() > until) return Promise.reject(new Error('timeout'));
+      return radioStatus().then(function (st) {
+        if (onEach) onEach(st);
+        return done(st) ? st : sleep(1000).then(step);
+      }, function () {
+        if (onEach) onEach(null);
+        return sleep(2000).then(step);
+      });
+    }
+    return step();
+  }
+
+  function radioDialog(title) {
+    closeDialog();
+    var wrap = el('div', { id: 'warre-dlg' });
+    var f = el('form', { class: 'wide' });
+    f.onsubmit = function (ev) { ev.preventDefault(); };
+    f.appendChild(el('h2', {}, title));
+    var body = el('div');
+    f.appendChild(body);
+    wrap.appendChild(f);
+    document.body.appendChild(wrap);
+    return body;
+  }
+
+  function sdkText(sdk) {
+    if (!sdk) return '';
+    var p = String(sdk).split(':');
+    var name = { gecko_sdk: 'Gecko SDK', simplicity_sdk: 'Simplicity SDK' }[p[0]] || p[0];
+    return p[1] ? name + ' ' + p[1] : name;
+  }
+
+  function installedText(st) {
+    return (FW_LABEL[st.installed_firmware] || st.installed_firmware) + ' ' + (st.installed_version || '(version unknown)');
+  }
+
+  function openRadio() {
+    if (radioBusy) return;
+    var body = radioDialog('Install radio firmware');
+    body.appendChild(el('p', {}, 'Loading the firmware list...'));
+    radioStatus().then(function (st) {
+      // the list comes from the `firmware` branch of the repository (same place the device checks)
+      return fetch(st.base_url + '/index.json', { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function (idx) { return [st, idx]; }, function () { return [st, null]; });
+    }).then(function (res) {
+      showRadioChoice(res[0], res[1]);
+    }, function () {
+      body.textContent = '';
+      body.appendChild(el('p', { class: 'err' }, 'This firmware has no radio update module, or the device does not respond.'));
+      body.appendChild(closeRow());
+    });
+  }
+
+  function closeRow(label, onClick) {
+    var row = el('div', { class: 'row' });
+    var b = el('button', { type: 'button', class: 'primary' }, label || 'Close');
+    b.onclick = onClick || closeDialog;
+    row.appendChild(b);
+    return row;
+  }
+
+  function showRadioChoice(st, idx) {
+    var body = radioDialog('Install radio firmware');
+    body.appendChild(el('p', {}, 'The radio (EFR32) now runs ' + installedText(st) + '. Choose a firmware type and ' +
+      'channel; the files come from the firmware list of this repository and are checked against its signature ' +
+      'before anything is flashed.'));
+    if (!idx) {
+      body.appendChild(el('p', { class: 'err' }, 'Could not load the firmware list from ' + st.base_url +
+        '. You can still choose; the device shows the version after it checked the signed manifest.'));
+    }
+    var list = el('div', { class: 'fwlist' });
+    var count = 0;
+    FW_ORDER.forEach(function (fw) {
+      CH_ORDER.forEach(function (ch) {
+        var e = idx ? ((idx.firmware || {})[fw] || {})[ch] : {};
+        if (!e) return;      // not published (yet)
+        count++;
+        var lab = el('label', { class: 'fw' });
+        var inp = el('input', { type: 'radio', name: 'warre-rfw', value: fw + '|' + ch });
+        if (fw === st.selected_firmware && ch === st.selected_channel) inp.checked = true;
+        lab.appendChild(inp);
+        var t = el('div');
+        var head = el('div');
+        head.appendChild(el('b', {}, FW_LABEL[fw] || fw));
+        head.appendChild(document.createTextNode(' · ' + ch));
+        if (e.version && fw === st.installed_firmware && e.version === st.installed_version)
+          head.appendChild(el('span', { class: 'tag inst' }, 'installed'));
+        if (e.experimental) head.appendChild(el('span', { class: 'tag exp' }, 'experimental'));
+        t.appendChild(head);
+        t.appendChild(el('small', {}, e.version ? 'Version ' + e.version + (e.sdk ? ' · ' + sdkText(e.sdk) : '')
+          : 'Version shown after the check'));
+        lab.appendChild(t);
+        list.appendChild(lab);
+      });
+    });
+    body.appendChild(list);
+    if (!count) body.appendChild(el('p', { class: 'err' }, 'The firmware list has no builds for this device.'));
+    var err = el('div', { class: 'err' });
+    body.appendChild(err);
+    var row = el('div', { class: 'row' });
+    var cancel = el('button', { type: 'button' }, 'Cancel');
+    cancel.onclick = closeDialog;
+    var go = el('button', { type: 'button', class: 'primary' }, 'Update...');
+    row.appendChild(cancel);
+    row.appendChild(go);
+    body.appendChild(row);
+
+    go.onclick = function () {
+      var sel = body.querySelector('input[name="warre-rfw"]:checked');
+      if (!sel) { err.textContent = 'Choose a firmware first.'; return; }
+      var v = sel.value.split('|');
+      var e = idx ? idx.firmware[v[0]][v[1]] : null;
+      checkChoice(v[0], v[1], e, err, [go, cancel]);
+    };
+  }
+
+  // Let the device check the signed manifest of this choice, then show the warning.
+  function checkChoice(fw, ch, entry, err, buttons) {
+    err.textContent = '';
+    buttons.forEach(function (b) { b.disabled = true; });
+    radioBusy = true;
+    var before;
+    function fail(msg) {
+      radioBusy = false;
+      buttons.forEach(function (b) { b.disabled = false; });
+      err.textContent = msg;
+    }
+    radioStatus().then(function (st) {
+      before = st.check_seq;
+      err.textContent = 'Checking the signed manifest...';
+      return post('/warre/radio/select', { firmware: fw, channel: ch });
+    }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'The device refused the choice.');
+      return pollRadio(function (st) {
+        return st.check_seq !== before && !st.checking && st.check_firmware === fw && st.check_channel === ch;
+      }, 60000);
+    }).then(function (st) {
+      radioBusy = false;
+      if (st.check_error) { fail('No verified firmware for this choice: ' + st.check_error); return; }
+      if (st.offer_firmware !== fw || st.offer_channel !== ch || !st.offer_version) {
+        fail('The device has no verified offer for this choice.');
+        return;
+      }
+      showRadioWarning(st, entry);
+    }).catch(function (e) {
+      fail(e && e.message === 'timeout' ? 'The device did not finish the check in time; try again.'
+        : (e && e.message) || 'No connection to the device.');
+    });
+  }
+
+  function showRadioWarning(st, entry) {
+    var fw = st.offer_firmware, ch = st.offer_channel, ver = st.offer_version;
+    var switching = fw !== st.installed_firmware;
+    var body = radioDialog('Flash the radio?');
+    body.appendChild(el('p', {}, 'The radio is about to be flashed with ' + (FW_LABEL[fw] || fw) + ' ' + ver +
+      ' (' + ch + '). The device downloaded the signed manifest and verified it.'));
+    if (st.offer_summary) body.appendChild(el('p', {}, st.offer_summary));
+    if (st.offer_release_url) {
+      var pl = el('p');
+      pl.appendChild(el('a', { href: st.offer_release_url, target: '_blank', rel: 'noopener' }, 'Release notes'));
+      body.appendChild(pl);
+    }
+
+    var ul = el('ul', { class: 'warn' });
+    if (switching) {
+      ul.appendChild(el('li', { class: 'big' }, 'This changes the radio from ' + (FW_LABEL[st.installed_firmware] ||
+        st.installed_firmware) + ' to ' + (FW_LABEL[fw] || fw) + '. The network on the radio is lost: ZHA, ' +
+        'Zigbee2MQTT or the OpenThread border router have to be set up again for the new type.'));
+    }
+    ul.appendChild(el('li', {}, 'Make a backup of your network first (ZHA / Zigbee2MQTT backup, or the Thread dataset).'));
+    ul.appendChild(el('li', {}, 'Stop ZHA / Zigbee2MQTT / OTBR or let them lose the connection: during the update ' +
+      'the serial bridge is closed.'));
+    ul.appendChild(el('li', {}, 'For about half a minute this page, the API and the bridge do not respond. ' +
+      'Do not unplug the device while the radio is being flashed.'));
+    if (entry && entry.experimental) ul.appendChild(el('li', {}, 'This build is marked experimental.'));
+    if (!switching && ver === st.installed_version) ul.appendChild(el('li', {}, 'This version is already installed; ' +
+      'it is flashed again.'));
+    ul.appendChild(el('li', {}, 'If flashing fails the radio stays in its bootloader; you can then start the update again.'));
+    body.appendChild(ul);
+
+    var acks = [];
+    function ack(text) {
+      var l = el('label', { class: 'ack' });
+      var c = el('input', { type: 'checkbox' });
+      l.appendChild(c);
+      l.appendChild(document.createTextNode(text));
+      body.appendChild(l);
+      acks.push(c);
+    }
+    if (switching) ack('I understand that the current network on the radio is lost.');
+    ack('I made a backup and want to flash the radio now.');
+
+    var err = el('div', { class: 'err' });
+    body.appendChild(err);
+    var row = el('div', { class: 'row' });
+    var cancel = el('button', { type: 'button' }, 'Cancel');
+    cancel.onclick = closeDialog;
+    var go = el('button', { type: 'button', class: 'danger fill' }, 'Install ' + ver);
+    go.disabled = true;
+    acks.forEach(function (c) {
+      c.onchange = function () { go.disabled = !acks.every(function (x) { return x.checked; }); };
+    });
+    row.appendChild(cancel);
+    row.appendChild(go);
+    body.appendChild(row);
+
+    go.onclick = function () {
+      if (!acks.every(function (x) { return x.checked; })) return;
+      go.disabled = cancel.disabled = true;
+      post('/warre/radio/install', { firmware: fw, channel: ch, version: ver }).then(function (res) {
+        if (!res.ok) {
+          go.disabled = cancel.disabled = false;
+          err.textContent = res.error || 'The device refused the install.';
+          return;
+        }
+        followInstall(res.install_seq, fw, ver);
+      }, function () {
+        go.disabled = cancel.disabled = false;
+        err.textContent = 'No connection to the device.';
+      });
+    };
+  }
+
+  function followInstall(seq, fw, ver) {
+    radioBusy = true;
+    var body = radioDialog('Flashing the radio');
+    body.appendChild(el('p', {}, (FW_LABEL[fw] || fw) + ' ' + ver + '. Keep this page open and the device powered.'));
+    var bar = el('div', { class: 'bar' });
+    var fill = el('div');
+    bar.appendChild(fill);
+    body.appendChild(bar);
+    var msg = el('p', {}, 'Starting...');
+    body.appendChild(msg);
+
+    pollRadio(function (st) { return st.install_seq !== seq && !st.installing && !st.queued; }, 300000, function (st) {
+      if (!st) { msg.textContent = 'The device is busy flashing and does not answer; waiting...'; return; }
+      if (st.queued && !st.installing) msg.textContent = 'Waiting for the device to start...';
+      else if (st.phase === 'download') msg.textContent = 'Downloading and verifying the image...';
+      else if (st.phase === 'flash') {
+        msg.textContent = 'Flashing the radio: ' + st.progress + '%';
+        fill.style.width = st.progress + '%';
+      } else if (st.installing) msg.textContent = 'Preparing the radio...';
+    }).then(function (st) {
+      radioBusy = false;
+      body.textContent = '';
+      body.appendChild(el('p', { class: st.result_ok ? 'ok' : 'bad' }, st.result_ok ? 'Done.' : 'The update failed.'));
+      body.appendChild(el('p', {}, st.result_message || ''));
+      if (st.result_ok) body.appendChild(el('p', {}, 'Reconnect ZHA / Zigbee2MQTT / OTBR to the radio.'));
+      body.appendChild(closeRow('Close', function () { closeDialog(); location.reload(); }));
+    }, function () {
+      radioBusy = false;
+      msg.textContent = 'No result from the device after five minutes. Reload the page and look at the ' +
+        '"Radio firmware" entity and the log.';
+      body.appendChild(closeRow());
     });
   }
 

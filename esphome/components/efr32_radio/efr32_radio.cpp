@@ -16,6 +16,9 @@
 #include "esphome/core/log.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/network/util.h"
+#ifdef USE_WEBSERVER
+#include "esphome/components/web_server_base/web_server_base.h"
+#endif
 
 namespace esphome::efr32_radio {
 
@@ -63,6 +66,119 @@ static uint16_t crc16_xmodem(const uint8_t *data, size_t len) {
   return crc;
 }
 
+// ------------------------------------------------------------------ web page API
+static void json_str(std::string &out, const char *key, const std::string &val) {
+  out += '"';
+  out += key;
+  out += "\":\"";
+  for (char c : val) {
+    if (c == '"' || c == '\\') {
+      out += '\\';
+      out += c;
+    } else if ((unsigned char) c < 0x20) {
+      char esc[8];
+      snprintf(esc, sizeof(esc), "\\u%04x", (unsigned) (unsigned char) c);
+      out += esc;
+    } else {
+      out += c;
+    }
+  }
+  out += "\",";
+}
+
+static void json_num(std::string &out, const char *key, long val) {
+  char buf[48];
+  snprintf(buf, sizeof(buf), "\"%s\":%ld,", key, val);
+  out += buf;
+}
+
+static void json_bool(std::string &out, const char *key, bool val) {
+  out += '"';
+  out += key;
+  out += val ? "\":true," : "\":false,";
+}
+
+#ifdef USE_WEBSERVER
+// GET  /warre/radio          status (installed, selection, last check, verified offer, install)
+// POST /warre/radio/select   firmware=<id>&channel=<channel>: set both selects, check again
+// POST /warre/radio/install  firmware=&channel=&version=: install the verified offer if it is
+//                            exactly that; the page shows its warning before it sends this.
+class RadioWebHandler : public AsyncWebHandler {
+ public:
+  explicit RadioWebHandler(Efr32RadioUpdate *parent) : parent_(parent) {}
+
+  bool canHandle(AsyncWebServerRequest *request) const override {
+    char buf[AsyncWebServerRequest::URL_BUF_SIZE];
+    StringRef url = request->url_to(buf);
+    return url == "/warre/radio" || url == "/warre/radio/select" || url == "/warre/radio/install";
+  }
+
+  void handleRequest(AsyncWebServerRequest *request) override {
+    char buf[AsyncWebServerRequest::URL_BUF_SIZE];
+    StringRef url = request->url_to(buf);
+    if (url == "/warre/radio") {
+      if (request->method() != HTTP_GET) {
+        request->send(405, "text/plain", "Method not allowed");
+        return;
+      }
+      this->send_status_(request);
+      return;
+    }
+    if (request->method() != HTTP_POST) {
+      request->send(405, "text/plain", "Method not allowed");
+      return;
+    }
+    const char *err;
+    if (url == "/warre/radio/select") {
+      err = this->parent_->web_select(request->arg("firmware"), request->arg("channel"));
+    } else {
+      err = this->parent_->web_install(request->arg("firmware"), request->arg("channel"), request->arg("version"));
+    }
+    if (err != nullptr) {
+      std::string json = "{\"ok\":false,";
+      json_str(json, "error", err);
+      json.back() = '}';
+      request->send(409, "application/json", json.c_str());
+      return;
+    }
+    this->send_status_(request);
+  }
+
+ protected:
+  void send_status_(AsyncWebServerRequest *request) {
+    WebStatus st = this->parent_->web_status();
+    std::string j = "{\"ok\":true,";
+    j.reserve(1024);
+    json_str(j, "base_url", this->parent_->base_url());
+    json_str(j, "installed_firmware", st.installed_firmware);
+    json_str(j, "installed_version", st.installed_version);
+    json_str(j, "selected_firmware", st.selected_firmware);
+    json_str(j, "selected_channel", st.selected_channel);
+    json_bool(j, "checking", st.checking);
+    json_num(j, "check_seq", st.check_seq);
+    json_str(j, "check_firmware", st.check_firmware);
+    json_str(j, "check_channel", st.check_channel);
+    json_str(j, "check_error", st.check_error);
+    json_str(j, "offer_firmware", st.offer_firmware);
+    json_str(j, "offer_channel", st.offer_channel);
+    json_str(j, "offer_version", st.offer_version);
+    json_str(j, "offer_summary", st.offer_summary);
+    json_str(j, "offer_release_url", st.offer_release_url);
+    json_bool(j, "queued", st.queued);
+    json_bool(j, "installing", st.installing);
+    json_str(j, "phase", st.phase);
+    json_num(j, "progress", st.progress);
+    json_num(j, "install_seq", st.install_seq);
+    json_bool(j, "result_ok", st.result_ok);
+    json_str(j, "result_message", st.result_message);
+    j.back() = '}';
+    request->send(200, "application/json", j.c_str());
+  }
+
+  Efr32RadioUpdate *parent_;
+};
+#endif  // USE_WEBSERVER
+
 // ------------------------------------------------------------------ setup / state
 void Efr32RadioUpdate::setup() {
   this->pref_ = global_preferences->make_preference<Installed>(fnv1_hash("efr32_radio_installed"), true);
@@ -79,6 +195,11 @@ void Efr32RadioUpdate::setup() {
   this->update_info_.current_version = this->installed_version_;
   this->update_info_.title = firmware_label(this->installed_firmware_);
   this->publish_state();
+  this->snapshot_();
+#ifdef USE_WEBSERVER
+  if (web_server_base::global_web_server_base != nullptr)
+    web_server_base::global_web_server_base->add_handler(new RadioWebHandler(this));  // behind the web login
+#endif
   // Router firmware: read its network state now and then (a no-op otherwise).
   this->set_timeout("router_first", 5000, [this]() { this->router_refresh(); });
   this->set_interval("router_poll", ROUTER_POLL_MS, [this]() {
@@ -121,13 +242,122 @@ std::string Efr32RadioUpdate::selected_firmware() const {
   return this->installed_firmware_;
 }
 
+// Main loop only: copy what the web handler shows.
+void Efr32RadioUpdate::snapshot_() {
+  std::lock_guard<std::mutex> lock(this->web_lock_);
+  WebStatus &w = this->web_;
+  w.installed_firmware = this->installed_firmware_;
+  w.installed_version = this->installed_version_;
+  w.selected_firmware = this->selected_firmware();
+  w.selected_channel = this->selected_channel();
+  w.checking = this->checking_;
+  w.check_seq = this->check_seq_;
+  w.check_firmware = this->check_firmware_;
+  w.check_channel = this->check_channel_;
+  w.check_error = this->check_error_;
+  w.offer_firmware = this->offer_.firmware;
+  w.offer_channel = this->offer_.channel;
+  w.offer_version = this->offer_.version;
+  w.offer_summary = this->offer_.summary;
+  w.offer_release_url = this->offer_.release_url;
+  w.installing = this->state_ == update::UPDATE_STATE_INSTALLING;
+  w.phase = this->phase_;
+  w.progress = w.installing ? (int) this->update_info_.progress : 0;
+  w.install_seq = this->install_seq_;
+  w.result_ok = this->result_ok_;
+  w.result_message = this->result_message_;
+}
+
+WebStatus Efr32RadioUpdate::web_status() {
+  std::lock_guard<std::mutex> lock(this->web_lock_);
+  WebStatus st = this->web_;
+  st.queued = this->install_queued_;
+  return st;
+}
+
+static bool known_firmware(const std::string &fw) {
+  return fw == "zigbee_ncp" || fw == "openthread_rcp" || fw == "zigbee_router";
+}
+
+static bool known_channel(const std::string &ch) { return ch == "stable" || ch == "beta" || ch == "latest"; }
+
+void Efr32RadioUpdate::select_option_(select::Select *sel, const std::string &want, bool firmware) {
+  if (sel == nullptr)
+    return;
+  for (size_t i = 0; i < sel->size(); i++) {
+    std::string opt = sel->option_at(i);
+    if (firmware ? firmware_id(opt) == want : opt == want) {
+      auto cur = sel->current_option();
+      if (!sel->has_state() || std::string(cur.c_str(), cur.size()) != opt)
+        sel->make_call().set_index(i).perform();
+      return;
+    }
+  }
+}
+
+// Web server task. Validates, then sets both selects in the main loop and runs one fresh check.
+const char *Efr32RadioUpdate::web_select(const std::string &firmware, const std::string &channel) {
+  if (!known_firmware(firmware) || !known_channel(channel))
+    return "Unknown firmware type or channel.";
+  if (this->firmware_select_ == nullptr || this->channel_select_ == nullptr)
+    return "This configuration has no firmware/channel selects.";
+  {
+    std::lock_guard<std::mutex> lock(this->web_lock_);
+    if (this->web_.installing || this->install_queued_)
+      return "A radio update is running.";
+  }
+  this->defer([this, firmware, channel]() {
+    if (this->state_ == update::UPDATE_STATE_INSTALLING)
+      return;
+    this->hold_check_ = true;  // the selects' on_value would check twice, half-changed
+    this->select_option_(this->firmware_select_, firmware, true);
+    this->select_option_(this->channel_select_, channel, false);
+    this->hold_check_ = false;
+    this->update();
+    this->snapshot_();
+  });
+  return nullptr;
+}
+
+// Web server task. Only queues the install; the main loop checks the offer again right before.
+const char *Efr32RadioUpdate::web_install(const std::string &firmware, const std::string &channel,
+                                          const std::string &version) {
+  {
+    std::lock_guard<std::mutex> lock(this->web_lock_);
+    if (this->web_.installing || this->install_queued_)
+      return "A radio update is already running.";
+    if (this->web_.checking)
+      return "Still checking the signed manifest; try again in a moment.";
+    if (this->web_.offer_version.empty() || this->web_.offer_firmware != firmware ||
+        this->web_.offer_channel != channel || this->web_.offer_version != version)
+      return "The device has no verified offer for exactly this version; select it again.";
+    this->install_queued_ = true;
+  }
+  this->defer([this, firmware, channel, version]() {
+    if (this->checking_ || this->offer_.firmware != firmware || this->offer_.channel != channel ||
+        this->offer_.version != version) {
+      this->install_queued_ = false;
+      this->install_seq_++;
+      this->result_ok_ = false;
+      this->result_message_ = "The verified offer changed before the install started; nothing was flashed.";
+      this->snapshot_();
+      return;
+    }
+    this->perform(true);  // blocks the main loop for about half a minute
+    this->install_queued_ = false;
+    this->snapshot_();
+  });
+  return nullptr;
+}
+
 // ------------------------------------------------------------------ check (task)
 void Efr32RadioUpdate::update() {
-  if (this->state_ == update::UPDATE_STATE_INSTALLING || !network::is_connected())
+  if (this->hold_check_ || this->state_ == update::UPDATE_STATE_INSTALLING || !network::is_connected())
     return;
   bool expected = false;
   if (!this->checking_.compare_exchange_strong(expected, true)) {
-    ESP_LOGD(TAG, "Check already running");
+    ESP_LOGD(TAG, "Check already running; checking again when it is done");
+    this->recheck_ = true;  // the selection may have changed meanwhile
     return;
   }
   auto *offer = new Offer();
@@ -141,6 +371,7 @@ void Efr32RadioUpdate::update() {
     this->pending_ = nullptr;
     this->checking_ = false;
   }
+  this->snapshot_();
 }
 
 void Efr32RadioUpdate::check_task_(void *arg) {
@@ -240,9 +471,18 @@ void Efr32RadioUpdate::loop() {
   this->pending_ = nullptr;
   this->checking_ = false;
   if (o != nullptr) {
+    this->check_seq_++;
+    this->check_firmware_ = o->firmware;
+    this->check_channel_ = o->channel;
+    this->check_error_ = o->error;
     this->apply_offer_(*o);
     delete o;
   }
+  if (this->recheck_) {
+    this->recheck_ = false;
+    this->update();
+  }
+  this->snapshot_();
 }
 
 void Efr32RadioUpdate::apply_offer_(const Offer &o) {
@@ -288,18 +528,23 @@ void Efr32RadioUpdate::perform(bool force) {
   }
   if (!force && this->state_ != update::UPDATE_STATE_AVAILABLE)
     return;
+  this->install_queued_ = false;
   Offer o = this->offer_;
   ESP_LOGI(TAG, "Installing %s %s from %s", o.firmware.c_str(), o.version.c_str(), o.url.c_str());
   this->state_ = update::UPDATE_STATE_INSTALLING;
   this->update_info_.has_progress = true;
   this->update_info_.progress = 0;
   this->publish_state();
+  this->phase_ = "download";
+  this->snapshot_();
 
   if (!this->download_(o))
     return;  // nothing was sent to the radio; it keeps running its firmware
   if (o.baudrate != 0 && o.baudrate != this->serial_->get_baud_rate())
     ESP_LOGW(TAG, "The new firmware talks at %u baud, this UART is set to %u", (unsigned) o.baudrate,
              (unsigned) this->serial_->get_baud_rate());
+  this->phase_ = "flash";
+  this->snapshot_();
   if (!this->flash_(o.size))
     return;
 
@@ -317,6 +562,11 @@ void Efr32RadioUpdate::perform(bool force) {
   this->status_clear_error();
   ESP_LOGI(TAG, "Radio now runs %s %s", o.firmware.c_str(), o.version.c_str());
   this->publish_state();
+  this->phase_ = "";
+  this->install_seq_++;
+  this->result_ok_ = true;
+  this->result_message_ = "The radio now runs " + std::string(firmware_label(o.firmware)) + " " + o.version + ".";
+  this->snapshot_();
   // a router starts without a network: show that, and its state once it is up
   this->set_timeout("router_first", 3000, [this]() { this->router_refresh(); });
 }
@@ -327,6 +577,11 @@ void Efr32RadioUpdate::fail_(const char *msg) {
   this->update_info_.has_progress = false;
   this->state_ = update::UPDATE_STATE_AVAILABLE;
   this->publish_state();
+  this->phase_ = "";
+  this->install_seq_++;
+  this->result_ok_ = false;
+  this->result_message_ = msg;
+  this->snapshot_();
 }
 
 // Download into the spare OTA partition (never marked bootable) and check the
@@ -490,7 +745,10 @@ bool Efr32RadioUpdate::xmodem_send_(uint32_t size) {
       ESP_LOGI(TAG, "Flashing: %d%%", pct);
       last_pct = pct;
     }
-    this->update_info_.progress = pct;
+    if (pct != (int) this->update_info_.progress) {
+      this->update_info_.progress = pct;
+      this->snapshot_();  // the web page polls while the main loop is busy here
+    }
   }
   for (int retry = 0; retry < 3; retry++) {
     this->serial_->write_byte(EOT);
