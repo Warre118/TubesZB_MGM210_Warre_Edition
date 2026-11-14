@@ -544,12 +544,17 @@ void Efr32RadioUpdate::apply_offer_(const Offer &o) {
   ESP_LOGI(TAG, "%s %s: %s (installed: %s %s)%s", o.firmware.c_str(), o.channel.c_str(), o.version.c_str(),
            this->installed_firmware_.c_str(), this->installed_version_.c_str(), same ? "" : " - update available");
   this->publish_state();
+  // Channel of the installed version, for the "Radio firmware installed" text: the channel that
+  // offers exactly that version (stable wins when both do).
+  if (same && (this->installed_channel_.empty() || o.channel == "stable"))
+    this->installed_channel_ = o.channel;
   // Boot default: the installed version is newer than stable, so it came from "latest".
   if (this->auto_channel_ && o.channel == "stable" && o.firmware == this->installed_firmware_) {
     this->auto_channel_ = false;
     if (!this->installed_version_.empty() && compare_versions(this->installed_version_, o.version) > 0) {
       ESP_LOGI(TAG, "Installed %s is newer than stable %s: channel latest", this->installed_version_.c_str(),
                o.version.c_str());
+      this->installed_channel_ = "latest";
       this->select_option_(this->channel_select_, "latest", false);  // on_value checks again
     }
   }
@@ -592,6 +597,7 @@ void Efr32RadioUpdate::perform(bool force) {
   global_preferences->sync();
   this->installed_firmware_ = o.firmware;
   this->installed_version_ = o.version;
+  this->installed_channel_ = o.channel;
   this->update_info_.current_version = o.version;
   this->update_info_.has_progress = false;
   this->update_info_.progress = 100;

@@ -94,6 +94,7 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
 
   const std::string &installed_firmware() const { return this->installed_firmware_; }
   const std::string &installed_version() const { return this->installed_version_; }
+  const std::string &installed_channel() const { return this->installed_channel_; }  // "" until known
   std::string selected_channel() const;
   std::string selected_firmware() const;
 
@@ -128,6 +129,7 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
 
   std::string installed_firmware_;
   std::string installed_version_;
+  std::string installed_channel_;
   ESPPreferenceObject pref_;
 
   Offer offer_;                       // the verified offer the entity shows

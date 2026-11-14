@@ -42,7 +42,7 @@ Group **Radio firmware** on the web page (and the same entities in Home Assistan
 | Zigbee router: join network | with the router firmware: search for an open Zigbee network and join it |
 | Zigbee router: leave network | with the router firmware: leave the network (after *Show All*) |
 
-The web page shows the router rows only while the router firmware is on the radio, and the update row shows the offered version instead of *UPDATE AVAILABLE*. **Radio firmware installed** is in *Technical info*; the Zigbee client connection and disconnect counter are in *Network*.
+The web page shows the router rows only while the router firmware is on the radio, and the update row shows the offered version instead of *UPDATE AVAILABLE*. **Radio firmware installed** is the top row, with the channel of that version in brackets (shown once the first check has run); the Zigbee client connection and disconnect counter are in *Network*.
 
 The check runs at start-up and every 6 hours (and on a channel or type change).
 

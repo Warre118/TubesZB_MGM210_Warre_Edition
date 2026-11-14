@@ -30,6 +30,9 @@
     '.tab-container{margin-bottom:14px}' +
     '.warre-hidden{display:none!important}' +
     '.warre-ver.new{font-weight:700}' +
+    // zebra rows counted over the visible rows only (the stock nth-child also counts hidden ones)
+    '.tab-container>.entity-row.warre-z0{background-color:transparent!important}' +
+    '.tab-container>.entity-row.warre-z1{background-color:rgba(90,90,90,.1)!important}' +
     // log window
     // newest line on top (inserted as first child); same height as the Maintenance list
     '.warre-log{font-family:monospace;font-size:13px;line-height:1.35;height:200px;overflow:auto;padding:8px 10px}' +
@@ -158,6 +161,8 @@
       }
     }
 
+    stripeRows(grid);
+
     // Maintenance only after "Show All"
     if (maintHdr) {
       maintHdr.classList.toggle('warre-hidden', !showAll);
@@ -178,6 +183,20 @@
     } else {
       if (lh) lh.remove();
       if (lc) lc.remove();
+    }
+  }
+
+  function stripeRows(grid) {
+    var conts = grid.querySelectorAll(':scope > .tab-container');
+    for (var c = 0; c < conts.length; c++) {
+      var n = 0;
+      var rows = conts[c].querySelectorAll(':scope > .entity-row');
+      for (var r = 0; r < rows.length; r++) {
+        var shown = !rows[r].classList.contains('warre-hidden') && rows[r].offsetParent !== null;
+        var odd = shown ? n++ % 2 === 1 : false;
+        rows[r].classList.toggle('warre-z0', shown && !odd);
+        rows[r].classList.toggle('warre-z1', shown && odd);
+      }
     }
   }
 
