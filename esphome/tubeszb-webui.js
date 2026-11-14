@@ -3,6 +3,8 @@
 //  - content centred, entity groups in two columns (one column on narrow screens), in pairs of
 //    equal height: Gateway | Radio firmware, Network | Technical info, Settings | Debug Log
 //  - everything always shown ("Show All" is switched on and its button disappears)
+//  - Network: "Connected to Home Assistant" + "Zigbee client connected" as one row (HA + check, Zigbee + check)
+//  - Radio firmware: update entity shown as "Firmware in repo" (Installed / offered build), Flash button
 //  - web login: "Create login" dialog on first run; "Login settings" row in Settings
 //    (needs warre_auth.h in the firmware)
 // The v3 page uses shadow DOM, so this script adds <style> and elements inside those shadow roots.
@@ -10,6 +12,10 @@
   var MAINT = 'Settings';
   var RADIO_GROUP = 'Radio firmware';     // web_server sorting group of the radio update entities
   var RADIO_UPDATE = 'Radio firmware';    // the update entity (efr32_radio)
+  var RADIO_UPDATE_LABEL = 'Firmware in repo';  // ... shown under this name: the build you would flash
+  // two Network rows shown as one: "HA ✓      Zigbee ✓"
+  var HA_ROW = 'Connected to Home Assistant';
+  var ZB_ROW = 'Zigbee client connected';
   // rows that only mean something while the radio runs the Zigbee router firmware
   var ROUTER_ROWS = ['Zigbee router network', 'Zigbee router: join network', 'Zigbee router: leave network'];
   var RESET_ENTITY = 'Reset web login';   // stays in Home Assistant, hidden on the page
@@ -33,6 +39,10 @@
     '.warre-radiorow .abutton+.abutton{margin-left:8px}' +
     '.warre-hidden{display:none!important}' +
     '.warre-ver.new{font-weight:700}' +
+    // combined HA / Zigbee row
+    '.warre-pair>div:nth-child(2){flex:0 0 auto!important}' +
+    '.warre-pair>div:nth-child(3){flex:1 1 auto!important;text-align:left!important;margin-left:10px!important}' +
+    '.warre-zb{display:flex;align-items:center;gap:10px;margin-right:8px}' +
     // zebra rows counted over the visible rows only (the stock nth-child also counts hidden ones)
     '.tab-container>.entity-row.warre-z0{background-color:transparent!important}' +
     '.tab-container>.entity-row.warre-z1{background-color:rgba(90,90,90,.1)!important}' +
@@ -153,18 +163,21 @@
       for (var q = 0; q < rrows.length; q++) {
         var rn = rrows[q].children[1] ? rrows[q].children[1].textContent.trim() : '';
         if (ROUTER_ROWS.indexOf(rn) >= 0) rrows[q].classList.toggle('warre-hidden', radioInstalled !== 'zigbee_router');
-        if (rn === RADIO_UPDATE) updRow = rrows[q];
+        if (rn === RADIO_UPDATE || rn === RADIO_UPDATE_LABEL) updRow = rrows[q];
       }
       var radioRow = rc.querySelector('.warre-radiorow') || makeRadioRow();
       updateRadioButton(radioRow);
       if (updRow) {
         if (updRow.nextElementSibling !== radioRow) updRow.after(radioRow);
+        setRowName(updRow, RADIO_UPDATE_LABEL);
         showUpdateVersion(table, updRow);
       } else if (!radioRow.parentNode) {
         rc.appendChild(radioRow);
       }
     }
+    watchRadioEntities(table);
 
+    pairNetworkRows(grid);
     stripeRows(grid);
 
     // log window right after Settings (next grid cell = right column)
@@ -195,6 +208,55 @@
     }
   }
 
+  // Rename a stock row on the page only (the entity keeps its name in Home Assistant). Changes the
+  // text node lit rendered; lit only rewrites it when the entity name itself changes.
+  function setRowName(row, text) {
+    var cell = row.children[1];
+    if (!cell) return;
+    var nodes = cell.childNodes;
+    for (var i = nodes.length - 1; i >= 0; i--) {
+      if (nodes[i].nodeType === 3 && nodes[i].data.trim()) {
+        if (nodes[i].data !== text) nodes[i].data = text;
+        return;
+      }
+    }
+  }
+
+  function rowName(row) {
+    return row.children[1] ? row.children[1].textContent.trim() : '';
+  }
+
+  // "Connected to Home Assistant" and "Zigbee client connected" as one row: HA ✓ left, Zigbee ✓ right.
+  // The Zigbee row stays in the page (hidden); its icon is copied every pass.
+  function pairNetworkRows(grid) {
+    var ha = grid.querySelector('.warre-pair');
+    var zb = null;
+    var rows = grid.querySelectorAll(':scope > .tab-container > .entity-row');
+    for (var i = 0; i < rows.length; i++) {
+      var n = rowName(rows[i]);
+      if (!ha && n === HA_ROW) ha = rows[i];
+      if (n === ZB_ROW) zb = rows[i];
+    }
+    if (!ha || !zb) return;
+    zb.classList.add('warre-hidden');
+    ha.classList.add('warre-pair');
+    setRowName(ha, 'HA');
+    var box = ha.querySelector(':scope > .warre-zb');
+    if (!box) {
+      box = el('div', { class: 'warre-zb' });
+      box.appendChild(el('span', {}, 'Zigbee'));
+      box.appendChild(el('span', { class: 'warre-zbstate' }));
+      ha.appendChild(box);
+    }
+    var src = zb.children[2];
+    var html = src ? src.innerHTML.replace(/<!--[\s\S]*?-->/g, '') : '';
+    var dst = box.querySelector('.warre-zbstate');
+    if (dst.getAttribute('data-h') !== html) {
+      dst.innerHTML = html;
+      dst.setAttribute('data-h', html);
+    }
+  }
+
   function buttonRow(cls, icon, name, label, onClick) {
     // same markup as the stock entity rows, so it looks like a normal button row
     var row = el('div', { class: 'entity-row ' + cls });
@@ -217,14 +279,38 @@
     return buttonRow('warre-loginrow', 'mdi:account-lock', 'Login settings', 'Open', function () { openLoginSettings(); });
   }
 
-  // Radio status (from /warre/radio), for the router rows and the Update button; refreshed now and then.
+  // Radio status (from /warre/radio), for the router rows, the Flash button and "Firmware in repo".
+  // Fetched again right away when one of the "Radio firmware ..." entities changes (type/channel
+  // chosen, check done, flashed), every 2 s while the device is checking/installing, else every 15 s.
   var radioInstalled = null;
   var radioSt = null;
+  var radioFetching = false;
   function refreshRadioInstalled() {
+    if (radioFetching) return;
+    radioFetching = true;
     radioStatus().then(function (st) {
+      radioFetching = false;
       radioSt = st;
       radioInstalled = st.installed_firmware || null;
-    }, function () {});
+      apply();
+    }, function () { radioFetching = false; });
+  }
+
+  function radioBusyState() {
+    return !!(radioSt && (radioSt.checking || radioSt.installing || radioSt.queued));
+  }
+
+  var radioSig = null;
+  function watchRadioEntities(table) {
+    var list = table.entities || [];
+    var s = '';
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].name || '').indexOf(RADIO_GROUP) === 0) s += list[i].name + '=' + list[i].state + '/' + list[i].value + ';';
+    }
+    if (s === radioSig) return;
+    var first = radioSig === null;
+    radioSig = s;
+    if (!first) refreshRadioInstalled();
   }
 
   // A verified offer that differs from what is on the radio (other version, or another firmware type
@@ -243,7 +329,7 @@
     if (st) b.title = (FW_LABEL[st.offer_firmware] || st.offer_firmware) + ' ' + st.offer_version + ' (' + st.offer_channel + ')';
   }
 
-  // Update: straight to the warning for the offer the device already verified (fetched again first).
+  // Flash: straight to the warning for the offer the device already verified (fetched again first).
   function startRadioUpdate() {
     if (radioBusy) return;
     radioStatus().then(function (st) {
@@ -253,7 +339,26 @@
     }, function () { openRadio(); });
   }
 
-  // The stock update row says "NO UPDATE" / "UPDATE AVAILABLE"; show the offered version instead.
+  // The stock update row says "NO UPDATE" / "UPDATE AVAILABLE". Show instead what the repo offers for
+  // the chosen type/channel: "Installed" when the radio already runs it, else the build (bold).
+  function updateText(ent, state) {
+    var st = radioSt;
+    if (st && (st.checking || st.queued)) return { text: 'Checking...', isNew: false, title: 'Looking up the repo build' };
+    if (st && !st.offer_version) return { text: 'Not in repo', isNew: false, title: 'No build in the repo for this type/channel' };
+    if (st) {
+      if (st.offer_firmware === st.installed_firmware && st.offer_version === st.installed_version) {
+        return { text: 'Installed', isNew: false, title: (FW_LABEL[st.offer_firmware] || st.offer_firmware) + ' ' + st.offer_version + ' is on the radio' };
+      }
+      return {
+        text: (FW_SHORT[st.offer_firmware] || st.offer_firmware) + ' ' + st.offer_version,
+        isNew: true,
+        title: (FW_LABEL[st.offer_firmware] || st.offer_firmware) + ', ' + st.offer_channel + ': not on the radio yet, Flash installs it'
+      };
+    }
+    var isNew = state.indexOf('AVAILABLE') >= 0;
+    return { text: isNew ? ent.value : 'Installed', isNew: isNew, title: isNew ? 'Not on the radio yet' : 'Installed' };
+  }
+
   function showUpdateVersion(table, row) {
     var ent = null, list = table.entities || [];
     for (var i = 0; i < list.length; i++) {
@@ -274,18 +379,17 @@
       mine = el('div', { class: 'warre-ver' });
       cell.appendChild(mine);
     }
-    var isNew = state.indexOf('AVAILABLE') >= 0;
-    var text = isNew ? 'New: ' + ent.value : ent.value;
-    if (mine.textContent !== text) mine.textContent = text;
-    mine.classList.toggle('new', isNew);
-    mine.title = isNew ? 'Update available' : 'Up to date';
+    var u = updateText(ent, state);
+    if (mine.textContent !== u.text) mine.textContent = u.text;
+    mine.classList.toggle('new', u.isNew);
+    mine.title = u.title;
     if (stock) stock.classList.add('warre-hidden');
   }
 
   function makeRadioRow() {
     var row = buttonRow('warre-radiorow', 'mdi:chip', 'Install radio firmware', 'Choose version', function () { openRadio(); });
     var choose = row.querySelector('.abutton');
-    var upd = el('button', { class: 'abutton warre-upd warre-hidden', type: 'button' }, 'Update');
+    var upd = el('button', { class: 'abutton warre-upd warre-hidden', type: 'button' }, 'Flash');
     upd.onclick = function (ev) {
       ev.stopPropagation();
       startRadioUpdate();
@@ -313,6 +417,7 @@
   setInterval(apply, 500);
   setTimeout(refreshRadioInstalled, 1000);
   setInterval(refreshRadioInstalled, 15000);
+  setInterval(function () { if (radioBusyState()) refreshRadioInstalled(); }, 2000);
 
   // --- Web login (see warre_auth.h) ----------------------------------------------------------
   // First run: a "Create login" dialog. Later: Settings -> "Login settings" to change the login,
@@ -485,6 +590,7 @@
     openthread_rcp: 'Thread (OpenThread RCP)',
     zigbee_router: 'Zigbee router'
   };
+  var FW_SHORT = { zigbee_ncp: 'EmberZNet', openthread_rcp: 'OpenThread', zigbee_router: 'Zigbee router' };
   var FW_ORDER = ['zigbee_ncp', 'openthread_rcp', 'zigbee_router'];
   var CH_ORDER = ['stable', 'latest'];
   var radioBusy = false;      // a check or install is being followed by this page

@@ -40,7 +40,7 @@ esphome:
   friendly_name: ${friendly_name}
   project:
     name: warre.tubeszb_mgm210
-    version: "1.4.3"
+    version: "1.4.4"
   # Web login module (see the comments in the file).
   includes:
     - warre_auth.h
