@@ -28,7 +28,7 @@ archive/                     earlier builds
 | `beta` | the newest pre-release of the builder, while there is one newer than the release |
 | `latest` | the head of the builder's `main` branch with the newest SDK |
 
-The device defaults to **beta**.
+The device defaults to **stable**.
 
 ## On the device
 

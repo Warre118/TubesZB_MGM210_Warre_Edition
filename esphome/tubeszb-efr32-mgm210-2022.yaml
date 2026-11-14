@@ -179,7 +179,7 @@ select:
     icon: mdi:source-branch
     entity_category: config
     options: [stable, latest, beta]
-    initial_option: beta
+    initial_option: stable
     optimistic: true
     restore_value: true
     on_value:
