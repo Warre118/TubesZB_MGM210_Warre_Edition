@@ -40,7 +40,7 @@ Group **Radio firmware** on the web page (and the same entities in Home Assistan
 | Radio firmware | update entity: installed version, the version the channel offers, the release summary and a link to the release notes, and the **Install** button |
 | Zigbee router network | with the router firmware: not on a network / joining / joined (channel, PAN, node) |
 | Zigbee router: join network | with the router firmware: search for an open Zigbee network and join it |
-| Zigbee router: leave network | with the router firmware: leave the network (after *Show All*) |
+| Zigbee router: leave network | with the router firmware: leave the network |
 
 The web page shows the router rows only while the router firmware is on the radio, and the update row shows the offered version instead of *UPDATE AVAILABLE*. **Radio firmware installed** is the top row, with the channel of that version in brackets (shown once the first check has run); the Zigbee client connection and disconnect counter are in *Network*.
 
@@ -48,7 +48,12 @@ The check runs at start-up and every 6 hours (and on a channel or type change).
 
 ### Choosing a version on the web page
 
-The group also has a row **Install radio firmware → Choose version**. It opens a dialog:
+The group also has a row **Install radio firmware** with two buttons:
+
+- **Update** appears only when the device has verified an offer that differs from what is on the
+  radio (another version, or another firmware type or channel chosen in the selects). The tooltip
+  names the offered build. It goes straight to the warning and confirmation of step 3 below.
+- **Choose version** opens a dialog:
 
 1. **List.** Every firmware type × channel that the firmware list (`index.json` on the
    `firmware` branch) has, with version and SDK. The installed build is tagged *installed*,

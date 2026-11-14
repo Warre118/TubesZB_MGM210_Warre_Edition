@@ -7,7 +7,7 @@ Newer firmware and a friendlier web page for the
 |---|---|---|
 | Zigbee radio (EFR32) | EmberZNet 7.4.3 (Gecko SDK 4.4) | **EmberZNet 9.1.1.1** (Simplicity SDK 2026.6.1) |
 | ESP32 serial bridge | external `stream_server` (no longer maintained) | built-in ESPHome `uart_tcp` |
-| Web page | one switch and a status | groups, diagnostics, technical info, maintenance buttons, log window |
+| Web page | one switch and a status | groups, diagnostics, technical info, settings buttons, log window |
 
 > **Unofficial.** Not a product of tube0013, Nabu Casa or Silicon Labs. Tested on one device
 > (2026-11-10, ZHA with ~55 devices, network kept without a restore). Use at your own risk and
@@ -44,19 +44,17 @@ Requires **ESPHome 2026.10 or newer** (`uart_tcp`).
 3. ESPHome → *Install* → *Wirelessly*. The TCP port stays **6638**: ZHA or Zigbee2MQTT notice nothing.
 
 Afterwards `http://<name>.local/` shows **TubesZB MGM210 Warre Edition**, centred, with the groups in
-two columns (one column on a narrow screen):
+pairs of equal height (one column on a narrow screen). Everything is always shown; there is no
+*Show All* button.
 
-- **Radio firmware** (left): installed firmware with its channel (e.g. `EmberZNet 9.1.1.1 (latest)`),
-  firmware type, channel, the update entity with the offered version, *Install radio firmware*;
-  router rows only with the router firmware
-- **Technical info** (right): chip, Zigbee stack, firmware type, interface, baud rate, flow control
-- **Network**: connected to Home Assistant, Zigbee client connected, main loop time, hostname (mDNS),
-  IP and MAC address, client disconnects
-- **Gateway (ESP32)**: uptime, memory (used / total), ESPHome version, last reset reason
-- **Maintenance** (after *Show All*): login settings, restart Zigbee radio,
-  **Zigbee radio to bootloader (flash mode)**, restart gateway (also in safe mode)
-- **Debug Log** (after *Show All*, next to Maintenance): newest line on top. The logger runs at
-  `INFO`: connects/disconnects, OTA, warnings and errors.
+| Left | Right |
+|---|---|
+| **Gateway (ESP32)**: uptime, CPU usage, memory (used / total), ESPHome version, last reset reason | **Radio firmware**: installed firmware with its channel (e.g. `EmberZNet 9.1.1.1 (latest)`), firmware type, channel, the update entity with the offered version, *Install radio firmware* (**Update** when a different build is offered, and **Choose version**); router rows only with the router firmware |
+| **Network**: connected to Home Assistant, Zigbee client connected, main loop time, hostname (mDNS), IP and MAC address, client disconnects | **Technical info**: chip, Zigbee stack, firmware type, interface, baud rate, flow control |
+| **Settings**: login settings, restart Zigbee radio, **Zigbee radio to bootloader (flash mode)**, restart gateway (also in safe mode) | **Debug Log**: as high as Settings, newest line on top. The logger runs at `INFO`: connects/disconnects, OTA, warnings and errors. |
+
+CPU usage is the share of time both cores are not idle, measured over 10 s with FreeRTOS run-time
+statistics.
 
 The page uses `local: false`: the browser loads the ESPHome web app from `oi.esphome.io` (so it needs
 internet access) and the layout script `/0.js` from the device. ESPHome only adds `js_include` to the
@@ -65,7 +63,7 @@ page in that mode.
 ### Web login
 
 On first start the page shows a **Create a login** dialog: choose a username and password, or
-*Continue without login*. Later, use **Show All → Maintenance → Login settings** to change the
+*Continue without login*. Later, use **Settings → Login settings** to change the
 login, turn it off or reset it.
 
 - The login is the browser's own sign-in prompt, using HTTP **Digest** authentication: the password

@@ -1,12 +1,13 @@
 // TubesZB MGM210 Warre Edition - layout tweaks for the ESPHome web page (web_server v3).
 // Baked into the firmware via web_server.js_include.
-//  - content centred, entity groups in two columns (one column on narrow screens)
-//  - "Maintenance" and a "Debug Log" window side by side, both only after "Show All"
-//  - web login: "Create login" dialog on first run; "Login settings" row in Maintenance
+//  - content centred, entity groups in two columns (one column on narrow screens), in pairs of
+//    equal height: Gateway | Radio firmware, Network | Technical info, Settings | Debug Log
+//  - everything always shown ("Show All" is switched on and its button disappears)
+//  - web login: "Create login" dialog on first run; "Login settings" row in Settings
 //    (needs warre_auth.h in the firmware)
 // The v3 page uses shadow DOM, so this script adds <style> and elements inside those shadow roots.
 (function () {
-  var MAINT = 'Maintenance';
+  var MAINT = 'Settings';
   var RADIO_GROUP = 'Radio firmware';     // web_server sorting group of the radio update entities
   var RADIO_UPDATE = 'Radio firmware';    // the update entity (efr32_radio)
   // rows that only mean something while the radio runs the Zigbee router firmware
@@ -17,31 +18,34 @@
   var APP_CSS =
     'main.flex-grid-half{display:block!important;max-width:1280px;margin:0 auto!important;padding:0 16px}' +
     'main.flex-grid-half .col{display:block!important;width:auto!important;margin:8px 0!important}' +
-    // the stock log column is replaced by our own window next to Maintenance
+    // the stock log column is replaced by our own window next to Settings
     '#col_logs{display:none!important}';
 
   var G = 'div:has(> .tab-header)';
   var TABLE_CSS =
-    G + '{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-flow:row dense;column-gap:28px;align-items:start}' +
+    // align-items:stretch: the two windows of a pair get the same height
+    G + '{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-flow:row dense;column-gap:28px;align-items:stretch}' +
     // group 1, 3, 5, ... left; group 2, 4, ... right (header + content stay together)
     G + '>:nth-child(4n+1),' + G + '>:nth-child(4n+2){grid-column:1}' +
     G + '>:nth-child(4n+3),' + G + '>:nth-child(4n+4){grid-column:2}' +
     G + '>.singlebutton-row{grid-column:1/-1;text-align:center}' +
-    '.tab-container{margin-bottom:14px}' +
+    '.tab-container{margin-bottom:14px;box-sizing:border-box}' +
+    '.warre-radiorow .abutton+.abutton{margin-left:8px}' +
     '.warre-hidden{display:none!important}' +
     '.warre-ver.new{font-weight:700}' +
     // zebra rows counted over the visible rows only (the stock nth-child also counts hidden ones)
     '.tab-container>.entity-row.warre-z0{background-color:transparent!important}' +
     '.tab-container>.entity-row.warre-z1{background-color:rgba(90,90,90,.1)!important}' +
     // log window
-    // newest line on top (inserted as first child); same height as the Maintenance list
-    '.warre-log{font-family:monospace;font-size:13px;line-height:1.35;height:200px;overflow:auto;padding:8px 10px}' +
+    // newest line on top (inserted as first child); fills the window, which is as high as Settings
+    '.warre-logcont{position:relative;min-height:120px}' +
+    '.warre-log{position:absolute;inset:0;font-family:monospace;font-size:13px;line-height:1.35;overflow:auto;padding:8px 10px}' +
     '.warre-log div{white-space:pre-wrap;word-break:break-word;padding:1px 0}' +
     '.warre-log .t{opacity:.55;margin-right:6px}.warre-log .g{opacity:.7;margin-right:6px}' +
     '.warre-log .E{color:#e53935;font-weight:700}.warre-log .W{color:#c9a400}.warre-log .I{color:#2e9d3a}' +
     '.warre-log .D{color:#0aa}.warre-log .V{color:#888}' +
     '.warre-log .empty{opacity:.6;font-style:italic}' +
-    '@media (max-width:860px){' + G + '{display:block}}';
+    '@media (max-width:860px){' + G + '{display:block}.warre-log{position:static;height:220px}}';
 
   function add(root, id, css) {
     if (root && !root.querySelector('style#' + id)) {
@@ -114,13 +118,12 @@
     return [hdr, cont];
   }
 
-  // --- Maintenance group: only after "Show All", log window next to it --------------------------
+  // --- Settings group with the log window next to it; radio rows ---------------------------------
 
   function arrangeTable(table) {
     var root = table.shadowRoot;
     var grid = root.querySelector(G);
     if (!grid) return;
-    var showAll = !!table.show_all;
 
     var maintHdr = null;
     var headers = grid.querySelectorAll(':scope > .tab-header:not(.warre-loghdr)');
@@ -153,6 +156,7 @@
         if (rn === RADIO_UPDATE) updRow = rrows[q];
       }
       var radioRow = rc.querySelector('.warre-radiorow') || makeRadioRow();
+      updateRadioButton(radioRow);
       if (updRow) {
         if (updRow.nextElementSibling !== radioRow) updRow.after(radioRow);
         showUpdateVersion(table, updRow);
@@ -163,16 +167,10 @@
 
     stripeRows(grid);
 
-    // Maintenance only after "Show All"
-    if (maintHdr) {
-      maintHdr.classList.toggle('warre-hidden', !showAll);
-      maintCont.classList.toggle('warre-hidden', !showAll);
-    }
-
-    // log window right after Maintenance (next grid cell = right column), only after "Show All"
+    // log window right after Settings (next grid cell = right column)
     var lh = grid.querySelector(':scope > .warre-loghdr');
     var lc = grid.querySelector(':scope > .warre-logcont');
-    if (showAll && maintCont) {
+    if (maintCont) {
       if (!lh || !lc) {
         var p = makeLogPanel();
         lh = p[0];
@@ -180,9 +178,6 @@
       }
       if (maintCont.nextElementSibling !== lh) maintCont.after(lh);
       if (lh.nextElementSibling !== lc) lh.after(lc);
-    } else {
-      if (lh) lh.remove();
-      if (lc) lc.remove();
     }
   }
 
@@ -222,10 +217,40 @@
     return buttonRow('warre-loginrow', 'mdi:account-lock', 'Login settings', 'Open', function () { openLoginSettings(); });
   }
 
-  // Installed radio firmware (from /warre/radio), for the router rows; refreshed now and then.
+  // Radio status (from /warre/radio), for the router rows and the Update button; refreshed now and then.
   var radioInstalled = null;
+  var radioSt = null;
   function refreshRadioInstalled() {
-    radioStatus().then(function (st) { radioInstalled = st.installed_firmware || null; }, function () {});
+    radioStatus().then(function (st) {
+      radioSt = st;
+      radioInstalled = st.installed_firmware || null;
+    }, function () {});
+  }
+
+  // A verified offer that differs from what is on the radio (other version, or another firmware type
+  // chosen in "Radio firmware type"/"channel").
+  function radioOffer() {
+    var st = radioSt;
+    if (!st || st.checking || st.installing || st.queued || !st.offer_version) return null;
+    if (st.offer_firmware === st.installed_firmware && st.offer_version === st.installed_version) return null;
+    return st;
+  }
+
+  function updateRadioButton(row) {
+    var b = row.querySelector('.warre-upd');
+    var st = radioOffer();
+    b.classList.toggle('warre-hidden', !st);
+    if (st) b.title = (FW_LABEL[st.offer_firmware] || st.offer_firmware) + ' ' + st.offer_version + ' (' + st.offer_channel + ')';
+  }
+
+  // Update: straight to the warning for the offer the device already verified (fetched again first).
+  function startRadioUpdate() {
+    if (radioBusy) return;
+    radioStatus().then(function (st) {
+      radioSt = st;
+      if (!radioOffer()) { openRadio(); return; }
+      showRadioWarning(st, null);
+    }, function () { openRadio(); });
   }
 
   // The stock update row says "NO UPDATE" / "UPDATE AVAILABLE"; show the offered version instead.
@@ -258,7 +283,15 @@
   }
 
   function makeRadioRow() {
-    return buttonRow('warre-radiorow', 'mdi:chip', 'Install radio firmware', 'Choose version', function () { openRadio(); });
+    var row = buttonRow('warre-radiorow', 'mdi:chip', 'Install radio firmware', 'Choose version', function () { openRadio(); });
+    var choose = row.querySelector('.abutton');
+    var upd = el('button', { class: 'abutton warre-upd warre-hidden', type: 'button' }, 'Update');
+    upd.onclick = function (ev) {
+      ev.stopPropagation();
+      startRadioUpdate();
+    };
+    choose.before(upd);
+    return row;
   }
 
   function apply() {
@@ -267,6 +300,8 @@
     add(app.shadowRoot, 'warre', APP_CSS);
     var table = app.shadowRoot.querySelector('esp-entity-table');
     if (table && table.shadowRoot) {
+      // everything always visible: switch "Show All" on (the stock page then drops its button)
+      if (!table.show_all) table.show_all = true;
       add(table.shadowRoot, 'warre', TABLE_CSS);
       arrangeTable(table);
     }
@@ -277,10 +312,10 @@
   apply();
   setInterval(apply, 500);
   setTimeout(refreshRadioInstalled, 1000);
-  setInterval(refreshRadioInstalled, 30000);
+  setInterval(refreshRadioInstalled, 15000);
 
   // --- Web login (see warre_auth.h) ----------------------------------------------------------
-  // First run: a "Create login" dialog. Later: Maintenance -> "Login settings" to change the login,
+  // First run: a "Create login" dialog. Later: Settings -> "Login settings" to change the login,
   // turn it off or reset it. The login itself is the browser's own Digest prompt.
 
   var DLG_CSS =
@@ -347,7 +382,7 @@
     var titles = { setup: 'Create a login', change: 'Login settings', enable: 'Login settings' };
     var texts = {
       setup: 'Protect this page with a username and password. You can also continue without a ' +
-        'login and set one later via Maintenance > "Login settings" (after "Show All").',
+        'login and set one later via Settings > "Login settings".',
       change: 'Logged in as "' + (authState && authState.user) + '". Enter a new username and ' +
         'password, or turn the login off.',
       enable: 'The login is off: anyone on your network can open this page. Set a username and ' +

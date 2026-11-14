@@ -41,7 +41,7 @@ universal-silabs-flasher --device socket://<tubeszb-ip>:6638 \
 - The flasher detects the running firmware, puts the radio into the bootloader itself and uploads the
   firmware (about 2½ minutes at 115200 baud).
 - If it cannot get into the bootloader: on the TubesZB web page press
-  **Maintenance → "Zigbee radio to bootloader (flash mode)"** (visible via *Show all*) and flash with
+  **Settings → "Zigbee radio to bootloader (flash mode)"** and flash with
   `--probe-methods bootloader:115200`.
 
 Verify:
