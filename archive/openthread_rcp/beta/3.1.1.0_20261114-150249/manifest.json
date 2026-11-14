@@ -5,7 +5,7 @@
  "channel": "beta",
  "version": "3.1.1.0",
  "file": "tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
- "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/openthread_rcp/beta/tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
+ "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/archive/openthread_rcp/beta/3.1.1.0_20261114-150249/tubeszb-mgm210_openthread_rcp_3.1.1.0.gbl",
  "sha256": "6dc68046eff5556df5e05bcb6ff5d659fc560212a2e521bdff9f4be56a4faa15",
  "md5": "b3ea763c125babf9f92379ac6a3bc0cb",
  "size": 102972,
@@ -28,5 +28,6 @@
  "built": "2026-11-12T20:21:49Z",
  "published": "2026-11-12T20:21:49Z",
  "stack_version": "3.1.1.0",
- "revision": 1
+ "revision": 1,
+ "archived": "2026-11-14T15:02:49Z"
 }

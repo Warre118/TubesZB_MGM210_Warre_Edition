@@ -5,7 +5,7 @@
  "channel": "beta",
  "version": "9.1.1.0",
  "file": "tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
- "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/beta/tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
+ "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/archive/zigbee_router/beta/9.1.1.0_20261114-150249/tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
  "sha256": "b6fab38a0d38eb7b44bf443e1855d94dfc6bbc4816ece8769174bdd5d786bb2b",
  "md5": "40d6e5ba4c3bb6fc71c800e5abf38538",
  "size": 310792,
@@ -33,5 +33,6 @@
  "previous": {
   "version": "2026.6.1",
   "archive": "archive/zigbee_router/beta/2026.6.1_20261114-144541"
- }
+ },
+ "archived": "2026-11-14T15:02:49Z"
 }
