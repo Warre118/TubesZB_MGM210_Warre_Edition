@@ -4,21 +4,30 @@
 #  - stream_server (tube's external component, no longer maintained) replaced by the built-in
 #    uart_tcp (ESPHome >= 2026.10). Same port 6638, so ZHA / Zigbee2MQTT notice nothing.
 #  - web_server v3 with groups, layout via tubeszb-webui.js (centred, two columns;
-#    Maintenance and a Debug Log window side by side after "Show All"). local: false is required for that: ESPHome only adds
-#    js_include to the page when the app is loaded from oi.esphome.io (browser needs internet).
-#    Maintenance buttons are "disabled_by_default": on the web page only visible via "Show all",
-#    disabled in Home Assistant by default.
+#    groups in pairs, Settings and a Debug Log window side by side, everything always shown).
+#    local: false is required for that: ESPHome only adds js_include to the page when the app is
+#    loaded from oi.esphome.io (browser needs internet). The Settings buttons are
+#    "disabled_by_default": always shown on the web page, disabled in Home Assistant by default.
 #  - Web login with a first-run "Create login" dialog (warre_auth.h, next to this config): the
 #    username/password are set on the page itself and kept in flash, not in this file.
 #  - internal_temperature left out: reports "NA" on this older ESP32.
+#  - Radio firmware updates (components/efr32_radio, next to this config): an update entity that
+#    offers the build of the selected channel (stable / latest) and stack (Zigbee
+#    coordinator / Thread / Zigbee router, the router with join and leave buttons)
+#    from the "firmware" branch of this repository, with release notes, and flashes the EFR32 from
+#    Home Assistant or this device's web page. At boot type and channel follow the flashed stack. Manifests are signed; the image is checked against
+#    the signed checksum before anything is sent to the radio. See docs/radio-updates.md.
 # Requires ESPHome 2026.10 or newer. Secrets: see secrets.example.yaml.
 
 substitutions:
   name: tubeszb-warre-edition
   friendly_name: "TubesZB MGM210 Warre Edition"
-  # Radio info shown on the page. Maintained by hand: the ESP32 cannot read this itself
-  # (the serial bridge is transparent). Update after flashing the EFR32.
-  efr32_firmware: "EmberZNet 9.1.1.1 (2026-11-10)"
+  # Radio firmware that is on the EFR32 until the first install through the "Radio firmware"
+  # update entity; from then on the device remembers what it flashed.
+  efr32_installed_firmware: zigbee_ncp
+  efr32_installed_version: "9.1.1.1"
+  # Where the firmware builds are published (fwpipe, see the px30-wallpanel repo, updater/).
+  radio_firmware_url: https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware
   efr32_chip: "MGM210PA32JIA2"
   efr32_stack: "EmberZNet 9.1.1"
   efr32_fw_type: "EZSP v19"
@@ -31,7 +40,7 @@ esphome:
   friendly_name: ${friendly_name}
   project:
     name: warre.tubeszb_mgm210
-    version: "1.3.1"
+    version: "1.4.5"
   # Web login module (see the comments in the file).
   includes:
     - warre_auth.h
@@ -41,12 +50,21 @@ esphome:
     then:
       - lambda: warre_auth::begin();
 
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [efr32_radio]
+
 esp32:
   board: esp-wrover-kit
   framework:
     type: arduino
     advanced:
       minimum_chip_revision: "3.1"
+    # FreeRTOS run-time statistics, for the "CPU usage" sensor (idle time per core).
+    sdkconfig_options:
+      CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS: y
 
 # WT32-ETH01 Ethernet
 ethernet:
@@ -94,23 +112,25 @@ web_server:
     username: "placeholder"
     password: "placeholder-not-used"
     type: digest
-  # Layout: centred, groups in two columns, log window next to Maintenance (file next to this config).
+  # Layout: centred, groups in two columns, log window next to Settings (file next to this config).
   js_include: tubeszb-webui.js
   sorting_groups:
-    - id: grp_zigbee
-      name: "Zigbee radio"
+    # two columns on the web page, in pairs: Gateway | Radio firmware, Network | Technical info,
+    # Settings | log window (the log window is added by tubeszb-webui.js)
+    - id: grp_gateway
+      name: "Gateway (ESP32)"
       sorting_weight: 10
+    - id: grp_radio_fw
+      name: "Radio firmware"
+      sorting_weight: 15
     - id: grp_network
       name: "Network"
       sorting_weight: 20
-    - id: grp_gateway
-      name: "Gateway (ESP32)"
-      sorting_weight: 30
     - id: grp_tech
       name: "Technical info"
-      sorting_weight: 35
+      sorting_weight: 25
     - id: grp_maintenance
-      name: "Maintenance"
+      name: "Settings"
       sorting_weight: 40
 
 # --- Serial bridge to the EFR32 ------------------------------------------------------------
@@ -145,7 +165,79 @@ mdns:
         baud_rate: "115200"
         data_flow_control: "software"
 
-# --- Zigbee radio --------------------------------------------------------------------------
+# --- Radio firmware updates ----------------------------------------------------------------
+
+# Downloads of the signed manifests and the firmware. verify_ssl is off because this ESP32 has
+# no CA bundle in the Arduino build; integrity comes from the ECDSA signature on the manifest
+# and the sha256 in it, both checked on the device before anything is flashed.
+http_request:
+  verify_ssl: false
+  timeout: 20s
+
+select:
+  - platform: template
+    id: radio_channel
+    name: "Radio firmware channel"
+    icon: mdi:source-branch
+    entity_category: config
+    options: [stable, latest]
+    # set at boot by radio_update: the channel the installed version came from
+    initial_option: stable
+    optimistic: true
+    on_value:
+      - lambda: id(radio_update).check();
+    web_server:
+      sorting_group_id: grp_radio_fw
+      sorting_weight: 20
+
+  - platform: template
+    id: radio_stack
+    name: "Radio firmware type"
+    icon: mdi:layers-outline
+    entity_category: config
+    options:
+      - "Zigbee (EmberZNet NCP)"
+      - "Thread (OpenThread RCP)"
+      - "Zigbee router"
+    # set at boot by radio_update: the stack that is on the radio
+    initial_option: "Zigbee (EmberZNet NCP)"
+    optimistic: true
+    on_value:
+      - lambda: id(radio_update).check();
+    web_server:
+      sorting_group_id: grp_radio_fw
+      sorting_weight: 10
+
+update:
+  - platform: efr32_radio
+    id: radio_update
+    name: "Radio firmware"
+    serial_id: uart_bus
+    base_url: ${radio_firmware_url}
+    channel_select: radio_channel
+    firmware_select: radio_stack
+    reset_switch: zRST_gpio
+    bootloader_switch: zBSL
+    installed_firmware: ${efr32_installed_firmware}
+    installed_version: ${efr32_installed_version}
+    update_interval: 6h
+    # Public half of the key that signs the published manifests (fwpipe signing_key).
+    # Network state while the radio runs the Zigbee router firmware.
+    router_status:
+      name: "Zigbee router network"
+      web_server:
+        sorting_group_id: grp_radio_fw
+        sorting_weight: 40
+    public_key: |
+      -----BEGIN PUBLIC KEY-----
+      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEExQWZht3s+5vVLqNMEu0Wu0RUa3P
+      B2SXmgaTk+w3aMvtW67DH0Z0KnQyftjl0hqNI7ANTnVrSWKJrh9CZZ37pQ==
+      -----END PUBLIC KEY-----
+    web_server:
+      sorting_group_id: grp_radio_fw
+      sorting_weight: 30
+
+# --- Zigbee client (TCP bridge) --------------------------------------------------------------
 
 binary_sensor:
   - platform: uart_tcp
@@ -154,14 +246,14 @@ binary_sensor:
       name: "Zigbee client connected"
       icon: mdi:lan-connect
       web_server:
-        sorting_group_id: grp_zigbee
-        sorting_weight: 10
+        sorting_group_id: grp_network
+        sorting_weight: 6
 
   - platform: status
     name: "Connected to Home Assistant"
     entity_category: diagnostic
     web_server:
-      sorting_group_id: grp_gateway
+      sorting_group_id: grp_network
       sorting_weight: 5
 
 sensor:
@@ -173,8 +265,8 @@ sensor:
       entity_category: diagnostic
       accuracy_decimals: 0
       web_server:
-        sorting_group_id: grp_zigbee
-        sorting_weight: 20
+        sorting_group_id: grp_network
+        sorting_weight: 40
 
   # Raw uptime in seconds: internal only, feeds the readable text below.
   - platform: uptime
@@ -182,28 +274,46 @@ sensor:
     internal: true
     update_interval: 60s
 
+  # How quickly the gateway answers: time of one pass of the main loop (the TCP bridge is
+  # served from it). A few ms is normal.
   - platform: debug
-    free:
-      name: "Free heap"
-      icon: mdi:memory
-      entity_category: diagnostic
-      web_server:
-        sorting_group_id: grp_gateway
-        sorting_weight: 30
-    block:
-      name: "Largest free heap block"
-      entity_category: diagnostic
-      disabled_by_default: true
-      web_server:
-        sorting_group_id: grp_gateway
-        sorting_weight: 31
     loop_time:
       name: "Main loop time"
+      icon: mdi:timer-sand
       entity_category: diagnostic
-      disabled_by_default: true
       web_server:
-        sorting_group_id: grp_gateway
-        sorting_weight: 32
+        sorting_group_id: grp_network
+        sorting_weight: 10
+
+  # CPU load of the gateway: share of time the two cores did not spend in their idle task,
+  # measured over the update interval (FreeRTOS run-time statistics, see esp32: sdkconfig_options).
+  - platform: template
+    name: "CPU usage"
+    icon: mdi:cpu-32-bit
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    state_class: measurement
+    entity_category: diagnostic
+    update_interval: 10s
+    lambda: |-
+      static uint32_t last_idle[portNUM_PROCESSORS] = {0};
+      static int64_t last_us = 0;
+      int64_t now = esp_timer_get_time();
+      uint32_t idle = 0;
+      for (int c = 0; c < portNUM_PROCESSORS; c++) {
+        uint32_t t = (uint32_t) ulTaskGetIdleRunTimeCounterForCore(c);  // microseconds (esp_timer clock)
+        idle += t - last_idle[c];
+        last_idle[c] = t;
+      }
+      int64_t span = (now - last_us) * portNUM_PROCESSORS;
+      bool first = last_us == 0;
+      last_us = now;
+      if (first || span <= 0) return {};
+      float busy = 100.0f - 100.0f * (float) idle / (float) span;
+      return busy < 0 ? 0.0f : (busy > 100 ? 100.0f : busy);
+    web_server:
+      sorting_group_id: grp_gateway
+      sorting_weight: 15
 
 text_sensor:
   - platform: template
@@ -222,14 +332,48 @@ text_sensor:
       sorting_weight: 10
 
   - platform: template
-    name: "Radio firmware"
+    name: "Radio firmware installed"
     icon: mdi:zigbee
     entity_category: diagnostic
-    update_interval: 1h
-    lambda: return {"${efr32_firmware}"};
+    update_interval: 15s
+    lambda: |-
+      auto fw = id(radio_update).installed_firmware();
+      auto v = id(radio_update).installed_version();
+      auto ch = id(radio_update).installed_channel();
+      std::string name = fw == "openthread_rcp" ? "OpenThread RCP" : fw == "zigbee_router" ? "Zigbee router" : "EmberZNet";
+      std::string text = name + " " + (v.empty() ? std::string("(unknown)") : v);
+      if (!ch.empty()) text += " (" + ch + ")";
+      return {text};
     web_server:
-      sorting_group_id: grp_zigbee
+      sorting_group_id: grp_radio_fw
       sorting_weight: 5
+
+  # Gateway memory in one line: used / total internal RAM.
+  - platform: template
+    name: "Memory"
+    icon: mdi:memory
+    entity_category: diagnostic
+    update_interval: 30s
+    lambda: |-
+      size_t total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+      size_t used = total - heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+      char buf[48];
+      snprintf(buf, sizeof(buf), "%u / %u kB (%u%%)", (unsigned) (used / 1024), (unsigned) (total / 1024),
+               (unsigned) (total ? used * 100 / total : 0));
+      return std::string(buf);
+    web_server:
+      sorting_group_id: grp_gateway
+      sorting_weight: 20
+
+  - platform: template
+    name: "Hostname (mDNS)"
+    icon: mdi:dns
+    entity_category: diagnostic
+    update_interval: 1h
+    lambda: return {App.get_name() + ".local"};
+    web_server:
+      sorting_group_id: grp_network
+      sorting_weight: 15
 
   # --- Technical info (fixed text from substitutions) ---
   - platform: template
@@ -299,18 +443,19 @@ text_sensor:
       entity_category: diagnostic
       web_server:
         sorting_group_id: grp_network
-        sorting_weight: 10
+        sorting_weight: 20
     mac_address:
       name: "MAC address"
       icon: mdi:ethernet
       entity_category: diagnostic
       web_server:
         sorting_group_id: grp_network
-        sorting_weight: 20
+        sorting_weight: 30
 
   - platform: version
     name: "ESPHome version"
     hide_timestamp: true
+    hide_hash: true
     entity_category: diagnostic
     web_server:
       sorting_group_id: grp_gateway
@@ -321,6 +466,11 @@ text_sensor:
       name: "Last reset reason"
       icon: mdi:restart-alert
       entity_category: diagnostic
+      # "Reboot request from esphome.ota" -> "esphome.ota"
+      filters:
+        - lambda: |-
+            const std::string p = "Reboot request from ";
+            return x.rfind(p, 0) == 0 ? x.substr(p.size()) : x;
       web_server:
         sorting_group_id: grp_gateway
         sorting_weight: 41
@@ -340,7 +490,7 @@ switch:
     inverted: true
     restore_mode: ALWAYS_OFF
 
-# --- Maintenance ---------------------------------------------------------------------------
+# --- Settings ------------------------------------------------------------------------------
 
 button:
   - platform: template
@@ -388,6 +538,28 @@ button:
     web_server:
       sorting_group_id: grp_maintenance
       sorting_weight: 30
+
+  # Zigbee router firmware only: join an open network / leave it (CLI on the radio's UART).
+  - platform: template
+    name: "Zigbee router: join network"
+    icon: mdi:link-variant-plus
+    entity_category: config
+    on_press:
+      - lambda: id(radio_update).router_join();
+    web_server:
+      sorting_group_id: grp_radio_fw
+      sorting_weight: 50
+
+  - platform: template
+    name: "Zigbee router: leave network"
+    icon: mdi:link-variant-off
+    entity_category: config
+    disabled_by_default: true
+    on_press:
+      - lambda: id(radio_update).router_leave();
+    web_server:
+      sorting_group_id: grp_radio_fw
+      sorting_weight: 51
 
   - platform: restart
     name: "Restart gateway"
