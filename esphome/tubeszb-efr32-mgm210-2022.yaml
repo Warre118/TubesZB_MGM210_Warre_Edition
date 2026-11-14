@@ -12,7 +12,8 @@
 #    username/password are set on the page itself and kept in flash, not in this file.
 #  - internal_temperature left out: reports "NA" on this older ESP32.
 #  - Radio firmware updates (components/efr32_radio, next to this config): an update entity that
-#    offers the build of the selected channel (stable / latest / beta) and stack (Zigbee / Thread)
+#    offers the build of the selected channel (stable / latest / beta) and stack (Zigbee
+#    coordinator / Thread / Zigbee router, the router with join and leave buttons)
 #    from the "firmware" branch of this repository, with release notes, and flashes the EFR32 from
 #    Home Assistant or this device's web page. Manifests are signed; the image is checked against
 #    the signed checksum before anything is sent to the radio. See docs/radio-updates.md.
@@ -195,6 +196,7 @@ select:
     options:
       - "Zigbee (EmberZNet NCP)"
       - "Thread (OpenThread RCP)"
+      - "Zigbee router"
     initial_option: "Zigbee (EmberZNet NCP)"
     optimistic: true
     restore_value: true
@@ -218,6 +220,12 @@ update:
     installed_version: ${efr32_installed_version}
     update_interval: 6h
     # Public half of the key that signs the published manifests (fwpipe signing_key).
+    # Network state while the radio runs the Zigbee router firmware.
+    router_status:
+      name: "Zigbee router network"
+      web_server:
+        sorting_group_id: grp_radio_fw
+        sorting_weight: 40
     public_key: |
       -----BEGIN PUBLIC KEY-----
       MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEExQWZht3s+5vVLqNMEu0Wu0RUa3P
@@ -474,6 +482,28 @@ button:
     web_server:
       sorting_group_id: grp_maintenance
       sorting_weight: 30
+
+  # Zigbee router firmware only: join an open network / leave it (CLI on the radio's UART).
+  - platform: template
+    name: "Zigbee router: join network"
+    icon: mdi:link-variant-plus
+    entity_category: config
+    on_press:
+      - lambda: id(radio_update).router_join();
+    web_server:
+      sorting_group_id: grp_radio_fw
+      sorting_weight: 50
+
+  - platform: template
+    name: "Zigbee router: leave network"
+    icon: mdi:link-variant-off
+    entity_category: config
+    disabled_by_default: true
+    on_press:
+      - lambda: id(radio_update).router_leave();
+    web_server:
+      sorting_group_id: grp_radio_fw
+      sorting_weight: 51
 
   - platform: restart
     name: "Restart gateway"

@@ -9,6 +9,9 @@
 //            the EFR32 into its Gecko bootloader and send the image over XMODEM.
 //            Runs in the main loop (like ESPHome's own OTA), so uart_tcp does not
 //            read the UART meanwhile; the TCP bridge is down for about half a minute.
+// router_*:  only with the zigbee_router firmware on the radio: talk to its CLI on the
+//            UART (join / leave a network, read the network state). Each command blocks
+//            the main loop for well under a second, so uart_tcp cannot take the reply.
 
 #include <atomic>
 #include <string>
@@ -18,6 +21,7 @@
 #include "esphome/components/http_request/http_request.h"
 #include "esphome/components/select/select.h"
 #include "esphome/components/switch/switch.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/uart/uart_component.h"
 #include "esphome/components/update/update_entity.h"
 
@@ -58,6 +62,14 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
     this->default_version_ = version;
   }
 
+  void set_router_status(text_sensor::TextSensor *s) { this->router_status_ = s; }
+
+  // Zigbee router controls (no-ops with another firmware on the radio)
+  bool is_router() const { return this->installed_firmware_ == "zigbee_router"; }
+  void router_join();
+  void router_leave();
+  void router_refresh();
+
   const std::string &installed_firmware() const { return this->installed_firmware_; }
   const std::string &installed_version() const { return this->installed_version_; }
   std::string selected_channel() const;
@@ -75,6 +87,8 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
   bool xmodem_send_(uint32_t size);
   void reset_radio_();
   void fail_(const char *msg);
+  std::string cli_(const char *cmd, uint32_t wait_ms);
+  void publish_router_status_(const std::string &text);
 
   http_request::HttpRequestComponent *http_{nullptr};
   uart::UARTComponent *serial_{nullptr};
@@ -82,6 +96,7 @@ class Efr32RadioUpdate : public update::UpdateEntity, public PollingComponent {
   switch_::Switch *boot_{nullptr};
   select::Select *channel_select_{nullptr};
   select::Select *firmware_select_{nullptr};
+  text_sensor::TextSensor *router_status_{nullptr};
   const char *base_url_{""};
   const char *public_key_{""};
   const char *default_firmware_{"zigbee_ncp"};

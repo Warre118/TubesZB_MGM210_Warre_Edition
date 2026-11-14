@@ -6,13 +6,13 @@ through its Gecko bootloader (XMODEM over the UART), from Home Assistant or
 the device's own web page. See docs/radio-updates.md.
 """
 import esphome.codegen as cg
-from esphome.components import http_request, select, switch, uart, update
+from esphome.components import http_request, select, switch, text_sensor, uart, update
 import esphome.config_validation as cv
 from esphome.const import CONF_UPDATE_INTERVAL
 
 CODEOWNERS = ["@Warre118"]
 DEPENDENCIES = ["http_request", "uart"]
-AUTO_LOAD = ["json"]
+AUTO_LOAD = ["json", "text_sensor"]
 
 efr32_radio_ns = cg.esphome_ns.namespace("efr32_radio")
 Efr32RadioUpdate = efr32_radio_ns.class_("Efr32RadioUpdate", update.UpdateEntity, cg.PollingComponent)
@@ -30,6 +30,8 @@ CONF_SERIAL_ID = "serial_id"
 CONF_INSTALLED_FIRMWARE = "installed_firmware"
 CONF_INSTALLED_VERSION = "installed_version"
 CONF_HTTP_REQUEST_ID = "http_request_id"
+# text sensor with the Zigbee network state while the radio runs the router firmware
+CONF_ROUTER_STATUS = "router_status"
 
 FIRMWARE_TYPES = ["zigbee_ncp", "openthread_rcp", "zigbee_router"]
 
@@ -55,6 +57,9 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_FIRMWARE_SELECT): cv.use_id(select.Select),
             cv.Optional(CONF_INSTALLED_FIRMWARE, default="zigbee_ncp"): cv.one_of(*FIRMWARE_TYPES),
             cv.Optional(CONF_INSTALLED_VERSION, default=""): cv.string,
+            cv.Optional(CONF_ROUTER_STATUS): text_sensor.text_sensor_schema(
+                icon="mdi:router-network", entity_category="diagnostic"
+            ),
         }
     )
     .extend(cv.polling_component_schema("6h"))
@@ -74,4 +79,7 @@ async def to_code(config):
         cg.add(var.set_channel_select(await cg.get_variable(config[CONF_CHANNEL_SELECT])))
     if CONF_FIRMWARE_SELECT in config:
         cg.add(var.set_firmware_select(await cg.get_variable(config[CONF_FIRMWARE_SELECT])))
+    if CONF_ROUTER_STATUS in config:
+        sens = await text_sensor.new_text_sensor(config[CONF_ROUTER_STATUS])
+        cg.add(var.set_router_status(sens))
     cg.add(var.set_installed_default(config[CONF_INSTALLED_FIRMWARE], config[CONF_INSTALLED_VERSION]))

@@ -29,6 +29,13 @@ static constexpr uint32_t XMODEM_TIMEOUT_MS = 2000;      // per block, like univ
 static constexpr uint8_t XMODEM_MAX_RETRIES = 3;
 static constexpr uint8_t SOH = 0x01, EOT = 0x04, ACK = 0x06, NAK = 0x15, CAN = 0x18;
 
+// CLI of the zigbee_router firmware (Simplicity SDK zigbee_core_cli / network steering)
+static const char *const ROUTER_PROMPT = "zigbee_router>";
+static const char *const CMD_INFO = "info";
+static const char *const CMD_JOIN = "plugin network-steering start 0";
+static const char *const CMD_LEAVE = "network leave";
+static constexpr uint32_t ROUTER_POLL_MS = 60000;
+
 // "Zigbee (EmberZNet NCP)" / "Thread (OpenThread RCP)" / "Zigbee router" or the raw ids
 static std::string firmware_id(const std::string &option) {
   if (option.find("hread") != std::string::npos || option == "openthread_rcp")
@@ -72,6 +79,12 @@ void Efr32RadioUpdate::setup() {
   this->update_info_.current_version = this->installed_version_;
   this->update_info_.title = firmware_label(this->installed_firmware_);
   this->publish_state();
+  // Router firmware: read its network state now and then (a no-op otherwise).
+  this->set_timeout("router_first", 5000, [this]() { this->router_refresh(); });
+  this->set_interval("router_poll", ROUTER_POLL_MS, [this]() {
+    if (this->is_router())
+      this->router_refresh();
+  });
   // first check shortly after the network is up, not only after update_interval
   this->set_interval("first_check", 15000, [this]() {
     if (network::is_connected()) {
@@ -304,6 +317,8 @@ void Efr32RadioUpdate::perform(bool force) {
   this->status_clear_error();
   ESP_LOGI(TAG, "Radio now runs %s %s", o.firmware.c_str(), o.version.c_str());
   this->publish_state();
+  // a router starts without a network: show that, and its state once it is up
+  this->set_timeout("router_first", 3000, [this]() { this->router_refresh(); });
 }
 
 void Efr32RadioUpdate::fail_(const char *msg) {
@@ -508,6 +523,132 @@ bool Efr32RadioUpdate::flash_(uint32_t size) {
   while (this->serial_->available() && this->serial_->read_byte(&ch)) {
   }
   return true;
+}
+
+// ------------------------------------------------------------------ Zigbee router
+// Send one CLI command and collect what the radio answers until its prompt comes
+// back (or wait_ms passes). Blocks the main loop: uart_tcp cannot read meanwhile.
+std::string Efr32RadioUpdate::cli_(const char *cmd, uint32_t wait_ms) {
+  uint8_t ch;
+  while (this->serial_->available() && this->serial_->read_byte(&ch)) {
+  }
+  this->serial_->write_str(cmd);
+  this->serial_->write_str("\r\n");
+  std::string out;
+  uint32_t start = millis();
+  while (millis() - start < wait_ms) {
+    if (this->serial_->available() && this->serial_->read_byte(&ch)) {
+      if (ch != '\r')
+        out += (char) ch;
+      if (out.size() > 2048)
+        out.erase(0, out.size() - 1024);
+      // the echo comes first, the prompt after the output
+      size_t echo = out.find(cmd);
+      size_t from = echo == std::string::npos ? 0 : echo + strlen(cmd);
+      if (out.find(ROUTER_PROMPT, from) != std::string::npos)
+        break;
+    } else {
+      delay(1);
+      App.feed_wdt();
+    }
+  }
+  return out;
+}
+
+static void log_lines(const char *what, const std::string &out) {
+  size_t pos = 0;
+  while (pos < out.size()) {
+    size_t nl = out.find('\n', pos);
+    std::string line = out.substr(pos, nl == std::string::npos ? std::string::npos : nl - pos);
+    if (!line.empty() && line.find(ROUTER_PROMPT) == std::string::npos) {
+      ESP_LOGD(TAG, "router %s: %s", what, line.c_str());
+    }
+    if (nl == std::string::npos)
+      break;
+    pos = nl + 1;
+  }
+}
+
+// value between the brackets after key, e.g. "chan [15]" -> "15"
+static std::string bracket_value(const std::string &out, const char *key) {
+  size_t k = out.find(key);
+  if (k == std::string::npos)
+    return "";
+  size_t open = out.find('[', k);
+  size_t close = open == std::string::npos ? std::string::npos : out.find(']', open);
+  if (close == std::string::npos || close - open > 24)
+    return "";
+  return out.substr(open + 1, close - open - 1);
+}
+
+void Efr32RadioUpdate::publish_router_status_(const std::string &text) {
+  if (this->router_status_ != nullptr && this->router_status_->state != text)
+    this->router_status_->publish_state(text);
+}
+
+void Efr32RadioUpdate::router_refresh() {
+  if (this->state_ == update::UPDATE_STATE_INSTALLING)
+    return;
+  if (!this->is_router()) {
+    this->publish_router_status_("Not a router (radio runs " + this->installed_firmware_ + ")");
+    return;
+  }
+  std::string out = this->cli_(CMD_INFO, 1500);
+  log_lines("info", out);
+  std::string state = bracket_value(out, "network state");
+  if (state.empty()) {
+    this->publish_router_status_("No answer from the radio's CLI");
+    return;
+  }
+  int st = (int) strtol(state.c_str(), nullptr, 16);
+  std::string chan = bracket_value(out, "chan");
+  std::string pan = bracket_value(out, "panID");
+  std::string node = bracket_value(out, "nodeID");
+  std::string text;
+  switch (st) {
+    case 0:
+      text = "Not on a network (press Join, with joining open in ZHA / Zigbee2MQTT)";
+      break;
+    case 1:
+      text = "Joining...";
+      break;
+    case 2:
+      text = "Joined: channel " + chan + ", PAN " + pan + ", node " + node;
+      break;
+    case 3:
+      text = "Joined, but no parent (searching): channel " + chan + ", PAN " + pan;
+      break;
+    case 4:
+      text = "Leaving the network...";
+      break;
+    default:
+      text = "Network state " + state;
+  }
+  this->publish_router_status_(text);
+}
+
+void Efr32RadioUpdate::router_join() {
+  if (!this->is_router()) {
+    ESP_LOGW(TAG, "Join: the radio does not run the Zigbee router firmware");
+    return;
+  }
+  ESP_LOGI(TAG, "Router: searching for an open Zigbee network (allow joining in ZHA / Zigbee2MQTT)");
+  log_lines("join", this->cli_(CMD_JOIN, 1500));
+  this->publish_router_status_("Joining...");
+  // steering scans all channels; look again a few times
+  this->set_timeout("router_r1", 15000, [this]() { this->router_refresh(); });
+  this->set_timeout("router_r2", 45000, [this]() { this->router_refresh(); });
+  this->set_timeout("router_r3", 90000, [this]() { this->router_refresh(); });
+}
+
+void Efr32RadioUpdate::router_leave() {
+  if (!this->is_router()) {
+    ESP_LOGW(TAG, "Leave: the radio does not run the Zigbee router firmware");
+    return;
+  }
+  ESP_LOGI(TAG, "Router: leaving the Zigbee network");
+  log_lines("leave", this->cli_(CMD_LEAVE, 1500));
+  this->set_timeout("router_r1", 3000, [this]() { this->router_refresh(); });
 }
 
 }  // namespace esphome::efr32_radio
