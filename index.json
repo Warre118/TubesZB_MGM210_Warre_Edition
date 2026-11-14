@@ -1,8 +1,13 @@
 {
  "schema": 2,
- "generated": "2026-11-14T09:05:09Z",
+ "generated": "2026-11-14T14:48:32Z",
  "device": "tubeszb-mgm210",
  "title": "TubesZB MGM210 2022",
+ "channels": [
+  "stable",
+  "beta",
+  "latest"
+ ],
  "firmware": {
   "zigbee_ncp": {
    "stable": {
@@ -18,7 +23,9 @@
     "experimental": false,
     "release_summary": "Zigbee coordinator (EmberZNet NCP) 7.5.1.0 \u00b7 Gecko SDK 4.5.0 \u00b7 v2026.02.23",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_ncp/stable/RELEASE_NOTES.md",
-    "published": "2026-11-12T20:19:18Z"
+    "published": "2026-11-12T20:19:18Z",
+    "stack_version": "7.5.1.0",
+    "version_code": 700500100001
    },
    "beta": {
     "version": "9.1.1.1",
@@ -33,7 +40,9 @@
     "experimental": false,
     "release_summary": "Zigbee coordinator (EmberZNet NCP) 9.1.1.1 \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_ncp/beta/RELEASE_NOTES.md",
-    "published": "2026-11-12T20:20:01Z"
+    "published": "2026-11-12T20:20:01Z",
+    "stack_version": "9.1.1.1",
+    "version_code": 900100100101
    },
    "latest": {
     "version": "9.1.1.1",
@@ -48,7 +57,9 @@
     "experimental": false,
     "release_summary": "Zigbee coordinator (EmberZNet NCP) 9.1.1.1 \u00b7 Simplicity SDK 2026.6.1 \u00b7 main@28cd284",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_ncp/latest/RELEASE_NOTES.md",
-    "published": "2026-11-12T20:20:38Z"
+    "published": "2026-11-12T20:20:38Z",
+    "stack_version": "9.1.1.1",
+    "version_code": 900100100101
    }
   },
   "openthread_rcp": {
@@ -65,7 +76,9 @@
     "experimental": false,
     "release_summary": "Thread / Matter radio (OpenThread RCP) 2.7.2.0 \u00b7 Simplicity SDK 2025.6.2 \u00b7 v2026.02.23",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/openthread_rcp/stable/RELEASE_NOTES.md",
-    "published": "2026-11-12T20:21:14Z"
+    "published": "2026-11-12T20:21:14Z",
+    "stack_version": "2.7.2.0",
+    "version_code": 200700200001
    },
    "beta": {
     "version": "3.1.1.0",
@@ -80,7 +93,9 @@
     "experimental": false,
     "release_summary": "Thread / Matter radio (OpenThread RCP) 3.1.1.0 \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/openthread_rcp/beta/RELEASE_NOTES.md",
-    "published": "2026-11-12T20:21:49Z"
+    "published": "2026-11-12T20:21:49Z",
+    "stack_version": "3.1.1.0",
+    "version_code": 300100100001
    },
    "latest": {
     "version": "3.1.1.0",
@@ -95,14 +110,16 @@
     "experimental": false,
     "release_summary": "Thread / Matter radio (OpenThread RCP) 3.1.1.0 \u00b7 Simplicity SDK 2026.6.1 \u00b7 main@28cd284",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/openthread_rcp/latest/RELEASE_NOTES.md",
-    "published": "2026-11-12T20:22:23Z"
+    "published": "2026-11-12T20:22:23Z",
+    "stack_version": "3.1.1.0",
+    "version_code": 300100100001
    }
   },
   "zigbee_router": {
    "stable": {
-    "version": "2025.6.2",
-    "file": "tubeszb-mgm210_zigbee_router_2025.6.2.gbl",
-    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/stable/tubeszb-mgm210_zigbee_router_2025.6.2.gbl",
+    "version": "8.2.2.0",
+    "file": "tubeszb-mgm210_zigbee_router_8.2.2.0.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/stable/tubeszb-mgm210_zigbee_router_8.2.2.0.gbl",
     "sha256": "cfc2721a06491d26066acfb3f56cf452e89487eb0e8f9306a05bbf6d25430c66",
     "md5": "12e35d3b3f8e1d43f03c81e6e9082360",
     "size": 284308,
@@ -110,14 +127,16 @@
     "flow_control": "none",
     "sdk": "simplicity_sdk:2025.6.2",
     "experimental": true,
-    "release_summary": "Zigbee router 2025.6.2 \u00b7 Simplicity SDK 2025.6.2 \u00b7 v2026.02.23 \u00b7 experimental",
+    "release_summary": "Zigbee router 8.2.2.0 (was 2025.6.2) \u00b7 Simplicity SDK 2025.6.2 \u00b7 v2026.02.23 \u00b7 experimental",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_router/stable/RELEASE_NOTES.md",
-    "published": "2026-11-14T00:35:36Z"
+    "published": "2026-11-14T14:44:39Z",
+    "stack_version": "8.2.2.0",
+    "version_code": 800200200001
    },
    "beta": {
-    "version": "2026.6.1",
-    "file": "tubeszb-mgm210_zigbee_router_2026.6.1.gbl",
-    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/beta/tubeszb-mgm210_zigbee_router_2026.6.1.gbl",
+    "version": "9.1.1.0",
+    "file": "tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/beta/tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
     "sha256": "b6fab38a0d38eb7b44bf443e1855d94dfc6bbc4816ece8769174bdd5d786bb2b",
     "md5": "40d6e5ba4c3bb6fc71c800e5abf38538",
     "size": 310792,
@@ -125,14 +144,16 @@
     "flow_control": "none",
     "sdk": "simplicity_sdk:2026.6.1",
     "experimental": true,
-    "release_summary": "Zigbee router 2026.6.1 \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2 \u00b7 experimental",
+    "release_summary": "Zigbee router 9.1.1.0 (was 2026.6.1) \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2 \u00b7 experimental",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_router/beta/RELEASE_NOTES.md",
-    "published": "2026-11-14T09:04:09Z"
+    "published": "2026-11-14T14:45:41Z",
+    "stack_version": "9.1.1.0",
+    "version_code": 900100100001
    },
    "latest": {
-    "version": "2026.6.1",
-    "file": "tubeszb-mgm210_zigbee_router_2026.6.1.gbl",
-    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/latest/tubeszb-mgm210_zigbee_router_2026.6.1.gbl",
+    "version": "9.1.1.0",
+    "file": "tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
+    "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/latest/tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
     "sha256": "b6fab38a0d38eb7b44bf443e1855d94dfc6bbc4816ece8769174bdd5d786bb2b",
     "md5": "40d6e5ba4c3bb6fc71c800e5abf38538",
     "size": 310792,
@@ -140,10 +161,17 @@
     "flow_control": "none",
     "sdk": "simplicity_sdk:2026.6.1",
     "experimental": true,
-    "release_summary": "Zigbee router 2026.6.1 \u00b7 Simplicity SDK 2026.6.1 \u00b7 main@bbbbf24 \u00b7 experimental",
+    "release_summary": "Zigbee router 9.1.1.0 (was 2026.6.1) \u00b7 Simplicity SDK 2026.6.1 \u00b7 main@bbbbf24 \u00b7 experimental",
     "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_router/latest/RELEASE_NOTES.md",
-    "published": "2026-11-14T09:05:08Z"
+    "published": "2026-11-14T14:46:41Z",
+    "stack_version": "9.1.1.0",
+    "version_code": 900100100001
    }
   }
+ },
+ "newest": {
+  "zigbee_ncp": "beta",
+  "openthread_rcp": "beta",
+  "zigbee_router": "beta"
  }
 }

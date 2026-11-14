@@ -1,7 +1,8 @@
 {
- "version": "2025.6.2",
- "fw_url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/stable/tubeszb-mgm210_zigbee_router_2025.6.2.gbl",
+ "version": "8.2.2.0",
+ "fw_url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/stable/tubeszb-mgm210_zigbee_router_8.2.2.0.gbl",
  "md5": "12e35d3b3f8e1d43f03c81e6e9082360",
  "size": 284308,
- "baudrate": 115200
+ "baudrate": 115200,
+ "version_code": 800200200001
 }

@@ -3,9 +3,9 @@
  "device": "tubeszb-mgm210",
  "firmware": "zigbee_router",
  "channel": "beta",
- "version": "2026.6.1",
- "file": "tubeszb-mgm210_zigbee_router_2026.6.1.gbl",
- "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/beta/tubeszb-mgm210_zigbee_router_2026.6.1.gbl",
+ "version": "9.1.1.0",
+ "file": "tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
+ "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/beta/tubeszb-mgm210_zigbee_router_9.1.1.0.gbl",
  "sha256": "b6fab38a0d38eb7b44bf443e1855d94dfc6bbc4816ece8769174bdd5d786bb2b",
  "md5": "40d6e5ba4c3bb6fc71c800e5abf38538",
  "size": 310792,
@@ -14,7 +14,7 @@
  "bootloader_baudrate": 115200,
  "sdk": "simplicity_sdk:2026.6.1",
  "description": "Zigbee router (repeater, no host needed); back to the bootloader with the ESP32 button",
- "release_summary": "Zigbee router 2026.6.1 \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2 \u00b7 experimental",
+ "release_summary": "Zigbee router 9.1.1.0 (was 2026.6.1) \u00b7 Simplicity SDK 2026.6.1 \u00b7 v2026.09.17-beta2 \u00b7 experimental",
  "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_router/beta/RELEASE_NOTES.md",
  "experimental": true,
  "source": {
@@ -23,10 +23,15 @@
   "commit": "adafdc20307fa0d3146a18583dc20bf6e1ad5439",
   "url": "https://github.com/NabuCasa/silabs-firmware-builder/releases/tag/v2026.09.17-beta2"
  },
- "fingerprint": "f18f04013a801fd559965eb05e3936da00a3375f5efa27b11f9bee65ed4d41c6",
- "config_hash": "8fcd098375afaaaa30002fc87993bf91064e4392d7fbd5070a51e86f24d521a6",
- "built": "2026-11-14T09:04:09Z",
- "published": "2026-11-14T09:04:09Z",
- "stack_version": "2026.6.1",
- "revision": 1
+ "fingerprint": "b251c9ff57925ad6d9f5fd108ed01c5089775746574f4e15b7d08c80e8d775d6",
+ "config_hash": "e45011bb5933fb263ec06d7c1a5a4914dcb093dd4e6afa570c737a31037d770c",
+ "built": "2026-11-14T14:45:41Z",
+ "published": "2026-11-14T14:45:41Z",
+ "stack_version": "9.1.1.0",
+ "revision": 1,
+ "version_code": 900100100001,
+ "previous": {
+  "version": "2026.6.1",
+  "archive": "archive/zigbee_router/beta/2026.6.1_20261114-144541"
+ }
 }

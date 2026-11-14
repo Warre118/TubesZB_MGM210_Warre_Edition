@@ -3,9 +3,9 @@
  "device": "tubeszb-mgm210",
  "firmware": "zigbee_router",
  "channel": "stable",
- "version": "2025.6.2",
- "file": "tubeszb-mgm210_zigbee_router_2025.6.2.gbl",
- "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/stable/tubeszb-mgm210_zigbee_router_2025.6.2.gbl",
+ "version": "8.2.2.0",
+ "file": "tubeszb-mgm210_zigbee_router_8.2.2.0.gbl",
+ "url": "https://raw.githubusercontent.com/Warre118/TubesZB_MGM210_Warre_Edition/firmware/zigbee_router/stable/tubeszb-mgm210_zigbee_router_8.2.2.0.gbl",
  "sha256": "cfc2721a06491d26066acfb3f56cf452e89487eb0e8f9306a05bbf6d25430c66",
  "md5": "12e35d3b3f8e1d43f03c81e6e9082360",
  "size": 284308,
@@ -14,7 +14,7 @@
  "bootloader_baudrate": 115200,
  "sdk": "simplicity_sdk:2025.6.2",
  "description": "Zigbee router (repeater, no host needed); back to the bootloader with the ESP32 button",
- "release_summary": "Zigbee router 2025.6.2 \u00b7 Simplicity SDK 2025.6.2 \u00b7 v2026.02.23 \u00b7 experimental",
+ "release_summary": "Zigbee router 8.2.2.0 (was 2025.6.2) \u00b7 Simplicity SDK 2025.6.2 \u00b7 v2026.02.23 \u00b7 experimental",
  "release_url": "https://github.com/Warre118/TubesZB_MGM210_Warre_Edition/blob/firmware/zigbee_router/stable/RELEASE_NOTES.md",
  "experimental": true,
  "source": {
@@ -23,10 +23,15 @@
   "commit": "b45d978a7c2b9d353329a39a035f4203c8458343",
   "url": "https://github.com/NabuCasa/silabs-firmware-builder/releases/tag/v2026.02.23"
  },
- "fingerprint": "4eac7e213041ac701fa9e5b499efbafef6c8259b36646a31284d3bebe1c4bf12",
- "config_hash": "8fcd098375afaaaa30002fc87993bf91064e4392d7fbd5070a51e86f24d521a6",
- "built": "2026-11-14T00:35:36Z",
- "published": "2026-11-14T00:35:36Z",
- "stack_version": "2025.6.2",
- "revision": 1
+ "fingerprint": "30c819e92ca7e2f300a5ed55dd36c9260f5d088aca2de19071a9451381c578bd",
+ "config_hash": "b072e7796f21e69e87aaa1e272b3560aee8aeebdb57e4c6954175ebbd1c9c9bd",
+ "built": "2026-11-14T14:44:39Z",
+ "published": "2026-11-14T14:44:39Z",
+ "stack_version": "8.2.2.0",
+ "revision": 1,
+ "version_code": 800200200001,
+ "previous": {
+  "version": "2025.6.2",
+  "archive": "archive/zigbee_router/stable/2025.6.2_20261114-144439"
+ }
 }

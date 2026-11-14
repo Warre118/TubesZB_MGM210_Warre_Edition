@@ -1,12 +1,12 @@
-# Zigbee router 2025.6.2
+# Zigbee router 8.2.2.0
 
 **TubesZB MGM210 2022**, channel **stable**.
 
-- Firmware version: 2025.6.2
+- Firmware version: 8.2.2.0 (replaces 2025.6.2)
 - SDK: Simplicity SDK 2025.6.2
 - Serial: 115200 baud, no flow control
 - Built from: [NabuCasa/silabs-firmware-builder@v2026.02.23 (b45d978a7c)](https://github.com/NabuCasa/silabs-firmware-builder/releases/tag/v2026.02.23)
-- Built: 2026-11-14T00:35:36Z
+- Built: 2026-11-14T14:44:39Z
 - **Experimental**: not tested on hardware yet.
 
 Zigbee router (repeater, no host needed); back to the bootloader with the ESP32 button
