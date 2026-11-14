@@ -40,8 +40,9 @@
     '.warre-hidden{display:none!important}' +
     '.warre-ver.new{font-weight:700}' +
     // combined HA / Zigbee row
-    '.warre-pair>div:nth-child(2){flex:0 0 auto!important}' +
-    '.warre-pair>div:nth-child(3){flex:1 1 auto!important;text-align:left!important;margin-left:10px!important}' +
+    '.warre-pair>div:nth-child(2){flex:0 0 auto!important;width:auto!important;min-width:0!important}' +
+    '.warre-pair>div:nth-child(3){flex:1 1 auto!important;justify-content:flex-start!important;margin-left:10px!important}' +
+    '.warre-pair>div:nth-child(3)>*{margin-left:0!important}' +
     '.warre-zb{display:flex;align-items:center;gap:10px;margin-right:8px}' +
     // zebra rows counted over the visible rows only (the stock nth-child also counts hidden ones)
     '.tab-container>.entity-row.warre-z0{background-color:transparent!important}' +
@@ -292,8 +293,32 @@
       radioFetching = false;
       radioSt = st;
       radioInstalled = st.installed_firmware || null;
+      refreshRadioIndex(st);
       apply();
     }, function () { radioFetching = false; });
+  }
+
+  // The firmware list (index.json) says which builds are experimental. Fetched again when the offer is
+  // not in the copy we have, or after 10 minutes.
+  var radioIdx = null, radioIdxAt = 0, radioIdxFetching = false;
+  function indexEntry(fw, ch) {
+    return radioIdx ? ((radioIdx.firmware || {})[fw] || {})[ch] || null : null;
+  }
+  function refreshRadioIndex(st) {
+    if (radioIdxFetching || !st || !st.base_url) return;
+    var e = st.offer_version ? indexEntry(st.offer_firmware, st.offer_channel) : null;
+    var stale = Date.now() - radioIdxAt > 600000;
+    if (radioIdx && !stale && (!st.offer_version || (e && e.version === st.offer_version))) return;
+    radioIdxFetching = true;
+    radioIdxAt = Date.now();
+    fetch(st.base_url + '/index.json', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function (idx) { radioIdxFetching = false; radioIdx = idx; apply(); },
+            function () { radioIdxFetching = false; });
+  }
+  function offerExperimental(st) {
+    var e = indexEntry(st.offer_firmware, st.offer_channel);
+    return !!(e && e.version === st.offer_version && e.experimental);
   }
 
   function radioBusyState() {
@@ -346,11 +371,12 @@
     if (st && (st.checking || st.queued)) return { text: 'Checking...', isNew: false, title: 'Looking up the repo build' };
     if (st && !st.offer_version) return { text: 'Not in repo', isNew: false, title: 'No build in the repo for this type/channel' };
     if (st) {
+      var exp = offerExperimental(st) ? ' (experimental)' : '';
       if (st.offer_firmware === st.installed_firmware && st.offer_version === st.installed_version) {
-        return { text: 'Installed', isNew: false, title: (FW_LABEL[st.offer_firmware] || st.offer_firmware) + ' ' + st.offer_version + ' is on the radio' };
+        return { text: 'Installed' + exp, isNew: false, title: (FW_LABEL[st.offer_firmware] || st.offer_firmware) + ' ' + st.offer_version + ' is on the radio' };
       }
       return {
-        text: (FW_SHORT[st.offer_firmware] || st.offer_firmware) + ' ' + st.offer_version,
+        text: (FW_SHORT[st.offer_firmware] || st.offer_firmware) + ' ' + st.offer_version + exp,
         isNew: true,
         title: (FW_LABEL[st.offer_firmware] || st.offer_firmware) + ', ' + st.offer_channel + ': not on the radio yet, Flash installs it'
       };

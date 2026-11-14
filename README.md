@@ -49,7 +49,7 @@ pairs of equal height (one column on a narrow screen). Everything is always show
 
 | Left | Right |
 |---|---|
-| **Gateway (ESP32)**: uptime, CPU usage, memory (used / total), ESPHome version, last reset reason | **Radio firmware**: installed firmware with its channel (e.g. `EmberZNet 9.1.1.1 (latest)`), firmware type, channel, *Firmware in repo* (the build for the chosen type/channel: **Installed** when the radio already runs it, else its version), *Install radio firmware* (**Flash** when that build is not on the radio yet, and **Choose version**); router rows only with the router firmware |
+| **Gateway (ESP32)**: uptime, CPU usage, memory (used / total), ESPHome version, last reset reason | **Radio firmware**: installed firmware with its channel (e.g. `EmberZNet 9.1.1.1 (latest)`), firmware type, channel, *Firmware in repo* (the build for the chosen type/channel: **Installed** when the radio already runs it, else its version; *(experimental)* behind it for an experimental build), *Install radio firmware* (**Flash** when that build is not on the radio yet, and **Choose version**); router rows only with the router firmware |
 | **Network**: one row **HA ✓ / Zigbee ✓** (connected to Home Assistant, Zigbee client connected), main loop time, hostname (mDNS), IP and MAC address, client disconnects | **Technical info**: chip, Zigbee stack, firmware type, interface, baud rate, flow control |
 | **Settings**: login settings, restart Zigbee radio, **Zigbee radio to bootloader (flash mode)**, restart gateway (also in safe mode) | **Debug Log**: as high as Settings, newest line on top. The logger runs at `INFO`: connects/disconnects, OTA, warnings and errors. |
 

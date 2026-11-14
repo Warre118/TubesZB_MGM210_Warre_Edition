@@ -42,7 +42,7 @@ Group **Radio firmware** on the web page (and the same entities in Home Assistan
 | Zigbee router: join network | with the router firmware: search for an open Zigbee network and join it |
 | Zigbee router: leave network | with the router firmware: leave the network |
 
-The web page shows the router rows only while the router firmware is on the radio, and the update entity is shown as **Firmware in repo**: the repo build for the chosen type and channel, or *Installed* when the radio already runs exactly that build (*Checking...* while the check runs). **Radio firmware installed** is the top row, with the channel of that version in brackets (shown once the first check has run); the Zigbee client connection (one row with the Home Assistant connection: *HA ✓ / Zigbee ✓*) and disconnect counter are in *Network*.
+The web page shows the router rows only while the router firmware is on the radio, and the update entity is shown as **Firmware in repo**: the repo build for the chosen type and channel, or *Installed* when the radio already runs exactly that build (*Checking...* while the check runs), with *(experimental)* behind it when the firmware list marks that build experimental. **Radio firmware installed** is the top row, with the channel of that version in brackets (shown once the first check has run); the Zigbee client connection (one row with the Home Assistant connection: *HA ✓ / Zigbee ✓*) and disconnect counter are in *Network*.
 
 The check runs at start-up and every 6 hours (and on a channel or type change).
 
