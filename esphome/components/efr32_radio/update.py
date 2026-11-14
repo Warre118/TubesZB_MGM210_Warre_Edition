@@ -62,7 +62,7 @@ CONFIG_SCHEMA = (
             ),
         }
     )
-    .extend(cv.polling_component_schema("6h"))
+    .extend(cv.polling_component_schema("24h"))
 )
 
 

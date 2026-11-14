@@ -220,7 +220,7 @@ update:
     bootloader_switch: zBSL
     installed_firmware: ${efr32_installed_firmware}
     installed_version: ${efr32_installed_version}
-    update_interval: 6h
+    update_interval: 24h
     # Public half of the key that signs the published manifests (fwpipe signing_key).
     # Network state while the radio runs the Zigbee router firmware.
     router_status:
